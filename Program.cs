@@ -793,6 +793,7 @@ namespace IngameScript
             while (true)
             {
                 if (Me.CubeGrid.IsStatic) { isStation = true; }
+                else isStation = false;
                 //double runtimeTot=0;
                 //double runtime = 1.6*yieldTime;
                 //Echo($"runtime: {runtimeTot}");
