@@ -1001,6 +1001,7 @@ namespace IngameScript
                     InvTextWriting(output.ToString());
                 }
                 //runtimeTot = 0;
+
             }
         }   
         public void TextWriting(IMyTextPanel LCD, bool lcdBool,string input, bool append)
