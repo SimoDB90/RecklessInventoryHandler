@@ -789,9 +789,11 @@ namespace IngameScript
         {
             while (true)
             {
+                if (Me.CubeGrid.IsStatic) { isStation = true; }
                 //double runtimeTot=0;
                 //double runtime = 1.6*yieldTime;
                 //Echo($"runtime: {runtimeTot}");
+
                 /////////////////////
                 //FUSION CANISTERS
                 /////////////////////
@@ -1064,7 +1066,7 @@ namespace IngameScript
                 var fuelInReactor = r.GetInventory().GetItemAmount(fuelCanister);
                 if (Math.Abs((int)fuelInReactor - customFuel) >= 0 && Math.Abs((int)fuelInReactor - customFuel) < 3)
                 {
-                    Echo($"fuel: {Math.Abs((int)fuelInReactor - customFuel)}");
+                    //Echo($"fuel: {Math.Abs((int)fuelInReactor - customFuel)}");
                     continue;
                 }
                 foreach (var cargo in allCargo)

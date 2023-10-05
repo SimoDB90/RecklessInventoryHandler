@@ -9,7 +9,7 @@ DOWNLOAD AND READ THE GUIDE = https://steamcommunity.com/sharedfiles/filedetails
 CUSTOMIZE:
 Use the PB's custom data to change Tag's name, cargo group names, the boolean value to false if you don't wanna use the "unload" and "reload" functionalities
 and if you are not in ExpasneServer, put it on false to avoid pushing fusion canisters into reactors; if yes, choose how
-many canisters push into reactors;
+many canisters push into reactors; Tag an LCD as [RIH].Log for logs and another [RIH].Inventory for ores quantity in cargos.
 USE IT: 
 The script auto starts pulling fuel canisters and special containers.
 Script's command: start, refresh, cancel, reload, unload, toggle and read&write;
