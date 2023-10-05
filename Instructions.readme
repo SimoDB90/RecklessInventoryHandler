@@ -1,0 +1,23 @@
+﻿R e a d m e
+-----------
+SCRIPT: RECKLESS INVENTORY HANDLER;
+TAG: RIH;
+OWNER: Reckless;
+Version: 1.0.0;
+DOWNLOAD AND READ THE GUIDE = https://steamcommunity.com/sharedfiles/filedetails/?id=3045706587
+
+CUSTOMIZE:
+Use the PB's custom data to change Tag's name, cargo group names, the boolean value to false if you don't wanna use the "unload" and "reload" functionalities
+and if you are not in ExpasneServer, put it on false to avoid pushing fusion canisters into reactors; if yes, choose how
+many canisters push into reactors;
+USE IT: 
+The script auto starts pulling fuel canisters and special containers.
+Script's command: start, refresh, cancel, reload, unload, toggle and read&write;
+1)"start": will start auto pulling fusion canisters into reactors and check for any "Special" cargo to unload into non Special cargos;
+2)"reload": transfers all the wanted items, from your station's containers (named "Base Cargo") to your ship's containers (named "Ship Cargos");
+- Write in the ship's containers custom data, in the first line [Cargo], then, the wanted items and the amount, in this way: "Component/SteelPlate=25", for every line;
+3)"unload": quickly transfers all items in your ship's containers to your station's containers (named "Base Cargo");
+4)"stop": kill the script;
+5)"refresh": reads the custom data of cargos (like you would recompile the script);
+6) "toggle": turn on all blocks except for Epstein Drivers and tools;
+7)"read&write": read the items cargos tagge with "[RIH]" and write the items into the CD;
