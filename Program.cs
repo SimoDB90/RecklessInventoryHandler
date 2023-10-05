@@ -909,6 +909,7 @@ namespace IngameScript
                             //Echo($"item: {i}");
                             //runtimeTot += runtime;
                             //Echo($"runtime: {runtimeTot}");
+
                             yield return yieldTime;
                             foreach (var destC in allCargo)
                             {
@@ -972,7 +973,7 @@ namespace IngameScript
                                 {
                                     if (c.GetInventory().FindItem(oreType) != null)
                                     {
-                                        oreAmount = (int)c.GetInventory().GetItemAmount(oreType);
+                                        oreAmount = (float)c.GetInventory().GetItemAmount(oreType);
                                         totOre += oreAmount;
                                     }
                                     else continue;
@@ -993,16 +994,16 @@ namespace IngameScript
                         {
                             Dictionary<string, float> oreDict = new Dictionary<string, float>();
                             List<MyInventoryItem> allInv = new List<MyInventoryItem>();
-                            allInv.Clear();
+                            
                             
                             foreach (var c in allCargo)
                             {
-                                
+                                allInv.Clear();
                                 c.GetInventory().GetItems(allInv);
-                                foreach(var i  in allInv)
+                                Echo($"item: {allInv.Count}\n");
+                                foreach (var i  in allInv)
                                 {
-                                    MyDefinitionId itemId = i.Type;
-                                    //Echo($"item: {i}\n");
+                                    
                                     MyDefinitionId ore = i.Type;
                                     //Echo($"ore: {ore}\n");
 
@@ -1010,16 +1011,20 @@ namespace IngameScript
                                     {
                                         var oreName = i.Type.SubtypeId.ToString();
                                         var oreType = MyItemType.MakeOre(oreName);
-                                        //Echo($"oreType: {oreType}\n");
                                         var amount = c.GetInventory().GetItemAmount(oreType);
-                                        //Echo($"amount: {amount}\n");
+                                        //Me.CustomData+= $"\ncont: {c.CustomName}; oreType: {oreType}; amount: {amount}\n";
                                         if (oreDict.ContainsKey(oreName))
                                         {
                                             oreDict[oreName] += (float)amount;
+                                            //Me.CustomData+=$"DICT: {oreDict[oreName]}\n";
                                         }
                                         else oreDict.Add(oreName, (float)amount); 
                                     }
                                 }
+                            }
+                            foreach (var kv in oreDict)
+                            {
+                                Echo($"ore: {kv.Key}---amount: {kv.Value}\n");
                             }
                             foreach (var kv in oreDict)
                             {
