@@ -36,10 +36,10 @@ namespace IngameScript
         /// <summary>
         /// RIH - RECKLESS INVENTORY HANDLER
         /// By "RECKLESS"
-        /// CURRENT VERSION = V1.0.0
+        /// CURRENT VERSION = V1.1.0
         /// </summary>
 
-        const string version = "V: 1.0.0";
+        const string version = "V: 1.1.0";
         bool isStation;
         const int timeSpan = 1;
         
