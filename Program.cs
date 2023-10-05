@@ -1000,7 +1000,7 @@ namespace IngameScript
                             {
                                 allInv.Clear();
                                 c.GetInventory().GetItems(allInv);
-                                ((Echo($"item: {allInv.Count}\n");
+                                //(Echo($"item: {allInv.Count}\n");
                                 foreach (var i  in allInv)
                                 {
                                     
