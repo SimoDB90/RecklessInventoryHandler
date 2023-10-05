@@ -11,12 +11,14 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Windows.Input;
+using System.Xml.Linq;
 using VRage;
 using VRage.Collections;
 using VRage.Game;
@@ -36,10 +38,10 @@ namespace IngameScript
         /// <summary>
         /// RIH - RECKLESS INVENTORY HANDLER
         /// By "RECKLESS"
-        /// CURRENT VERSION = V1.1.0
+        /// CURRENT VERSION = V1.1.1
         /// </summary>
 
-        const string version = "V: 1.1.0";
+        const string version = "V: 1.1.1";
         bool isStation;
         const int timeSpan = 1;
         
@@ -73,6 +75,7 @@ namespace IngameScript
         readonly List<IMyReactor> reactors = new List<IMyReactor>();
         readonly List<IMyCargoContainer> allCargo = new List<IMyCargoContainer>();
         readonly List<IMyCargoContainer> specialCargo = new List<IMyCargoContainer> ();
+        readonly List<IMyShipConnector> specialConnector = new List<IMyShipConnector> ();
         readonly StringBuilder missingItems = new StringBuilder();
         readonly StringBuilder missingCargo = new StringBuilder();
 
@@ -882,20 +885,23 @@ namespace IngameScript
                 /////////////////////
                 //Echo($"loopFuel: {imLoopingFuel}\nloopSpecial: {imLoopingSpecial}");
                 GridTerminalSystem.GetBlocksOfType(specialCargo, x => x.CustomName.Contains(specialContainersTagCustom));
-                TextWriting(LCDLog, LCDLogBool, $"2)Looping {specialCargo.Count} Special Containers\n", false);
-                if (specialCargo != null && specialCargo.Count > 0)
+                GridTerminalSystem.GetBlocksOfType(specialConnector, x => x.CustomName.Contains(specialContainersTagCustom));
+                TextWriting(LCDLog, LCDLogBool, $"2)Looping {specialCargo.Count + specialConnector.Count} Special Containers\n", false);
+                if ((specialCargo != null && specialCargo.Count > 0))
                 {
                     //runtimeTot += runtime;
                     //Echo($"runtime: {runtimeTot}");
                     yield return yieldTime;
+                    List<MyInventoryItem> items = new List<MyInventoryItem>();
                     foreach (var container in specialCargo)
                     {
+                        items.Clear();
                         //Echo($"special c: {container}");
                         if (container.GetInventory() == null) { continue; }
                         //runtimeTot += runtime;
                         //Echo($"runtime: {runtimeTot}");
                         yield return yieldTime;
-                        List<MyInventoryItem> items = new List<MyInventoryItem>();
+
                         container.GetInventory().GetItems(items);
                         foreach (var i in items)
                         {
@@ -905,8 +911,30 @@ namespace IngameScript
                             yield return yieldTime;
                             foreach (var destC in allCargo)
                             {
-                                TextWriting(LCDLog, LCDLogBool, $"2)Looping {specialCargo.Count} Special Containers\nPulling Special Containers", false);
+                                TextWriting(LCDLog, LCDLogBool, $"2)Looping {specialCargo.Count + specialConnector.Count} Special Containers\nPulling Special Containers", false);
                                 container.GetInventory().TransferItemTo(destC.GetInventory(), i, i.Amount);
+                            }
+                        }
+                    }
+                }
+                if(specialConnector != null && specialConnector.Count > 0)
+                {
+                    List<MyInventoryItem> items = new List<MyInventoryItem>();
+                    foreach (var connectorInv in specialConnector)
+                    {
+                        items.Clear();
+                        if (connectorInv.GetInventory() == null) continue;
+                        yield return yieldTime;
+                        connectorInv.GetInventory().GetItems(items);
+                        foreach (var i in items)
+                        {
+                            //Echo($"item: {i}");
+                            //Echo($"amount: {i.Amount}");
+                            yield return yieldTime;
+                            foreach (var destC in allCargo)
+                            {
+                                TextWriting(LCDLog, LCDLogBool, $"2)Looping {specialCargo.Count + specialConnector.Count} Special Containers\nPulling Special Containers", false);
+                                connectorInv.GetInventory().TransferItemTo(destC.GetInventory(), i, i.Amount);
                             }
                         }
                     }
