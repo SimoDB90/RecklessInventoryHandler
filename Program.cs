@@ -1041,7 +1041,7 @@ namespace IngameScript
             if (lcdBool)
             {
                 string header = $"{lcd_divider}\n{lcd_title}\n           {version}\n{lcd_divider}\n" +
-                    $"Station: {isStation}\n{lcd_divider}\n";
+                    $"Station: {isStation}\n{lcd_divider}\nCommands: start, stop, unload, reload\nrefresh, read&write, toggle\n{lcd_divider}\n";
                 LCD.WriteText(header + input, append);
             }
         }
