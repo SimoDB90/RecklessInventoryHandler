@@ -3,8 +3,8 @@
 SCRIPT: RECKLESS INVENTORY HANDLER;
 TAG: RIH;
 OWNER: Reckless;
-Version: 1.1.1;
-Last Update: 05/10/2023;
+Version: 1.1.2;
+Last Update: 06/10/2023;
 DOWNLOAD AND READ THE GUIDE = https://steamcommunity.com/sharedfiles/filedetails/?id=3045706587
 
 CUSTOMIZE:
@@ -14,7 +14,7 @@ many canisters push into reactors; Tag an LCD as [RIH].Log for logs and another 
 USE IT: 
 The script auto starts pulling fuel canisters and special containers.
 Script's command: start, refresh, cancel, reload, unload, toggle and read&write;
-1)"start": will start auto pulling fusion canisters into reactors and check for any "Special" cargo to unload into non Special cargos;
+1)"start": will start auto pulling fusion canisters into reactors and check for any "Special" cargo to unload into non Special cargos (if is set in CD);
 2)"reload": transfers all the wanted items, from your station's containers (named "Base Cargo") to your ship's containers (named "Ship Cargos");
 - Write in the ship's containers custom data, in the first line [Cargo], then, the wanted items and the amount, in this way: "Component/SteelPlate=25", for every line;
 3)"unload": quickly transfers all items in your ship's containers to your station's containers (named "Base Cargo");
