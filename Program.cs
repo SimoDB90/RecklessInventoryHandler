@@ -38,10 +38,10 @@ namespace IngameScript
         /// <summary>
         /// RIH - RECKLESS INVENTORY HANDLER
         /// By "RECKLESS"
-        /// CURRENT VERSION = V1.1.1
+        /// CURRENT VERSION = V1.1.2
         /// </summary>
 
-        const string version = "V: 1.1.1";
+        const string version = "V: 1.1.2;
         bool isStation;
         const int timeSpan = 1;
         
@@ -67,6 +67,8 @@ namespace IngameScript
         int customFuel;
         const int timeMultDefault = 1;
         int timeMultCustom = 1;
+        const bool specialCargoUsageDefault = true;
+        bool specialCargoUsageCustom;
         const string specialContainersTagDefault = "Special";
         string specialContainersTagCustom;
 
@@ -112,8 +114,8 @@ namespace IngameScript
                     $"Found {shipContainers.Count} ship cargos\n" +
                     $"LCD.Log found {LCDLogBool}\n" +
                     $"LCD.Inv found {LCDInvBool}\n" +
-                    $"[List of commands:\nstart: retrieve infos\nstealth: set the thrust to stealth drive\n" +
-                    $"cancel: suppress script and stealth drive\n" +
+                    $"[List of commands:\nstart: start auto pull\n" +
+                    $"stop: suppress script and stealth drive\n" +
                     $"reload: load the cargo with their custom data\n" +
                     $"unload: unload all comps\nrefresh: re-read cargos' CD\n" +
                     $"read&write: read tagged items and write in the CD\n" +
@@ -135,6 +137,7 @@ namespace IngameScript
             readCargoCustom = _ini.Get("data", "SetCargo").ToBoolean(readCargoDefault);
             BaseContainersCustom = _ini.Get("data", "BaseContainersGroup").ToString(BaseContainersDefault);
             ShipContainersCustom = _ini.Get("data", "ShipContainersGroup").ToString(ShipContainersDefault);
+            specialCargoUsageCustom = _ini.Get("data", "SpecialCargoUsage").ToBoolean(specialCargoUsageDefault);
             specialContainersTagCustom = _ini.Get("data", "SpecialContainersTag").ToString(specialContainersTagDefault);
             timeMultCustom = _ini.Get("data", "Extra100Ticks").ToInt32(timeMultDefault);
 
@@ -148,6 +151,7 @@ namespace IngameScript
             _ini.Set("data", "SetCargo", readCargoCustom);
             _ini.Set("data", "BaseContainersGroup", BaseContainersCustom);
             _ini.Set("data", "ShipContainersGroup", ShipContainersCustom);
+            _ini.Set("data", "SpecialCargoUsage", specialCargoUsageCustom);
             _ini.Set("data", "SpecialContainersTag", specialContainersTagCustom);
             _ini.Set("data", "Extra100Ticks", timeMultCustom);
 
@@ -302,17 +306,6 @@ namespace IngameScript
                 LCDInv.Font = "Monospace";
                 LCDInv.FontColor = lcd_font_colour;
                 LCDInv.ContentType = ContentType.TEXT_AND_IMAGE;
-                //_ini.Clear();
-                //bool isparsed = (_ini.TryParse(LCDInv.CustomData));
-                //quotaCustom = _ini.Get("Quota", "Mil").ToInt32(quotaDefault);
-                //if (!isparsed)
-                //{
-                //    _ini.Clear();
-                //}
-                //_ini.Set("Quota", "Mil", quotaCustom);
-                //_ini.AddSection("Ores");
-                //_ini.AddSection("HUD");
-                //LCDInv.CustomData = _ini.ToString();
 
                 if (!LCDInv.CustomData.Contains("hudlcd"))
                 {
@@ -885,58 +878,61 @@ namespace IngameScript
                 //SPECIAL CONTAINERS
                 /////////////////////
                 //Echo($"loopFuel: {imLoopingFuel}\nloopSpecial: {imLoopingSpecial}");
-                GridTerminalSystem.GetBlocksOfType(specialCargo, x => x.CustomName.Contains(specialContainersTagCustom));
-                GridTerminalSystem.GetBlocksOfType(specialConnector, x => x.CustomName.Contains(specialContainersTagCustom));
-                TextWriting(LCDLog, LCDLogBool, $"2)Looping {specialCargo.Count + specialConnector.Count} Special Containers\n", false);
-                if ((specialCargo != null && specialCargo.Count > 0))
+                if(specialCargoUsageCustom)
                 {
-                    //runtimeTot += runtime;
-                    //Echo($"runtime: {runtimeTot}");
-                    yield return yieldTime;
-                    List<MyInventoryItem> items = new List<MyInventoryItem>();
-                    foreach (var container in specialCargo)
+                    GridTerminalSystem.GetBlocksOfType(specialCargo, x => x.CustomName.Contains(specialContainersTagCustom));
+                    GridTerminalSystem.GetBlocksOfType(specialConnector, x => x.CustomName.Contains(specialContainersTagCustom));
+                    TextWriting(LCDLog, LCDLogBool, $"2)Looping {specialCargo.Count + specialConnector.Count} Special Containers\n", false);
+                    if ((specialCargo != null && specialCargo.Count > 0))
                     {
-                        items.Clear();
-                        //Echo($"special c: {container}");
-                        if (container.GetInventory() == null) { continue; }
                         //runtimeTot += runtime;
                         //Echo($"runtime: {runtimeTot}");
                         yield return yieldTime;
-
-                        container.GetInventory().GetItems(items);
-                        foreach (var i in items)
+                        List<MyInventoryItem> items = new List<MyInventoryItem>();
+                        foreach (var container in specialCargo)
                         {
-                            //Echo($"item: {i}");
+                            items.Clear();
+                            //Echo($"special c: {container}");
+                            if (container.GetInventory() == null) { continue; }
                             //runtimeTot += runtime;
                             //Echo($"runtime: {runtimeTot}");
-
                             yield return yieldTime;
-                            foreach (var destC in allCargo)
+    
+                            container.GetInventory().GetItems(items);
+                            foreach (var i in items)
                             {
-                                TextWriting(LCDLog, LCDLogBool, $"2)Looping {specialCargo.Count + specialConnector.Count} Special Containers\nPulling Special Containers", false);
-                                container.GetInventory().TransferItemTo(destC.GetInventory(), i, i.Amount);
+                                //Echo($"item: {i}");
+                                //runtimeTot += runtime;
+                                //Echo($"runtime: {runtimeTot}");
+    
+                                yield return yieldTime;
+                                foreach (var destC in allCargo)
+                                {
+                                    TextWriting(LCDLog, LCDLogBool, $"2)Looping {specialCargo.Count + specialConnector.Count} Special Containers\nPulling Special Containers", false);
+                                    container.GetInventory().TransferItemTo(destC.GetInventory(), i, i.Amount);
+                                }
                             }
                         }
                     }
-                }
-                if(specialConnector != null && specialConnector.Count > 0)
-                {
-                    List<MyInventoryItem> items = new List<MyInventoryItem>();
-                    foreach (var connectorInv in specialConnector)
+                    if(specialConnector != null && specialConnector.Count > 0)
                     {
-                        items.Clear();
-                        if (connectorInv.GetInventory() == null) continue;
-                        yield return yieldTime;
-                        connectorInv.GetInventory().GetItems(items);
-                        foreach (var i in items)
+                        List<MyInventoryItem> items = new List<MyInventoryItem>();
+                        foreach (var connectorInv in specialConnector)
                         {
-                            //Echo($"item: {i}");
-                            //Echo($"amount: {i.Amount}");
+                            items.Clear();
+                            if (connectorInv.GetInventory() == null) continue;
                             yield return yieldTime;
-                            foreach (var destC in allCargo)
+                            connectorInv.GetInventory().GetItems(items);
+                            foreach (var i in items)
                             {
-                                TextWriting(LCDLog, LCDLogBool, $"2)Looping {specialCargo.Count + specialConnector.Count} Special Containers\nPulling Special Containers", false);
-                                connectorInv.GetInventory().TransferItemTo(destC.GetInventory(), i, i.Amount);
+                                //Echo($"item: {i}");
+                                //Echo($"amount: {i.Amount}");
+                                yield return yieldTime;
+                                foreach (var destC in allCargo)
+                                {
+                                    TextWriting(LCDLog, LCDLogBool, $"2)Looping {specialCargo.Count + specialConnector.Count} Special Containers\nPulling Special Containers", false);
+                                    connectorInv.GetInventory().TransferItemTo(destC.GetInventory(), i, i.Amount);
+                                }
                             }
                         }
                     }
@@ -1022,10 +1018,10 @@ namespace IngameScript
                                     }
                                 }
                             }
-                            foreach (var kv in oreDict)
-                            {
-                                Echo($"ore: {kv.Key}---amount: {kv.Value}\n");
-                            }
+                            //foreach (var kv in oreDict)
+                            //{
+                            //    Echo($"ore: {kv.Key}---amount: {kv.Value}\n");
+                            //}
                             foreach (var kv in oreDict)
                             {
                                 output.Append($"{kv.Key, -10}{"= "+ Math.Round( kv.Value / oreQuota.Value,2), 17}\n");
