@@ -41,7 +41,7 @@ namespace IngameScript
         /// CURRENT VERSION = V1.1.2
         /// </summary>
 
-        const string version = "V: 1.1.2;
+        const string version = "V: 1.1.2";
         bool isStation;
         const int timeSpan = 1;
         
@@ -159,14 +159,9 @@ namespace IngameScript
         }
         public void Main(string argument, UpdateType updateType)
         {
-            if (argument =="" & (updateType & (UpdateType.Trigger | UpdateType.Terminal | UpdateType.Mod
-                | UpdateType.Update100)) != 0)
+            if ((updateType & (UpdateType.Terminal)) != 0)
             {
-                timerSM.Run();
-            }
-            if (argument.ToLower() != "" )
-            {
-                switch (argument)
+                switch (argument.ToLower())
                 {
                     case "start":
                         timerSM.Start();
@@ -262,13 +257,18 @@ namespace IngameScript
                         Echo("Toggling On everything except for Epsteins and tools");
                         TextWriting(LCDLog, LCDLogBool, $"{lcd_divider}\n{lcd_title}\n{lcd_divider}\nToggling On everything except for Epsteins\nand tools", false);
                         break;
+
+                    default:
+                        Echo("Command not valid");
+                        TextWriting(LCDLog, LCDLogBool, "Command not valid", false);
+                        break;
                 }
             }
-            //else
-            //{
-            //    Echo("Command not valid");
-            //    TextWriting(LCD, LCDBool,"Command not valid", false);
-            //}
+            else
+            {
+                timerSM.Run();
+                
+            }
         }
         public void Setup()
         {
