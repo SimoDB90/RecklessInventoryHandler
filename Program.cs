@@ -1062,7 +1062,7 @@ namespace IngameScript
                 turnOffCanister = "×";
             if (!specialCargoUsageCustom)
                 turnOffSpecial = "×";
-            if (!LCDLogBool)
+            if (!LCDInvBool)
                 turnOffLCD = "×";
             int specialCargosTot = specialCargo.Count + specialConnector.Count;
             string output =
