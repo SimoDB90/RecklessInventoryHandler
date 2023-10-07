@@ -38,10 +38,10 @@ namespace IngameScript
         /// <summary>
         /// RIH - RECKLESS INVENTORY HANDLER
         /// By "RECKLESS"
-        /// CURRENT VERSION = V1.1.2
+        /// CURRENT VERSION = V1.1.3
         /// </summary>
 
-        const string version = "V: 1.1.2";
+        const string version = "V: 1.1.3";
         bool isStation;
         const int timeSpan = 1;
         
@@ -54,8 +54,8 @@ namespace IngameScript
         const string TagDefault = "[RIH]";
         string TagCustom;
 
-        const bool ExpanseServerDefault = true;
-        bool ExpanseServerCustom;
+        const bool FuelCannistersUsageDefault = true;
+        bool FuelCannistersUsageCustom;
 
         const string BaseContainersDefault = "BaseCargo";
         string BaseContainersCustom;
@@ -110,7 +110,7 @@ namespace IngameScript
             {
                 Echo($"      SETUP COMPLETED:\n" +
                     $"Tag used: [{TagCustom}]\n" +
-                    $"Expanse Server = {ExpanseServerCustom}\n" +
+                    $"Expanse Server = {FuelCannistersUsageCustom}\n" +
                     $"Found {shipContainers.Count} ship cargos\n" +
                     $"LCD.Log found {LCDLogBool}\n" +
                     $"LCD.Inv found {LCDInvBool}\n" +
@@ -132,7 +132,7 @@ namespace IngameScript
             /// Custom Data
             bool wasparsed = _ini.TryParse(Me.CustomData);
             TagCustom = _ini.Get("data", "TAG").ToString(TagDefault);
-            ExpanseServerCustom = _ini.Get("data", "ExpanseServer").ToBoolean(ExpanseServerDefault);
+            FuelCannistersUsageCustom = _ini.Get("data", "FuelCannistersUsage").ToBoolean(FuelCannistersUsageDefault);
             customFuel = _ini.Get("data", "FuelAmount").ToInt16(defaultFuel);
             readCargoCustom = _ini.Get("data", "SetCargo").ToBoolean(readCargoDefault);
             BaseContainersCustom = _ini.Get("data", "BaseContainersGroup").ToString(BaseContainersDefault);
@@ -146,7 +146,7 @@ namespace IngameScript
                 _ini.Clear();
             }
             _ini.Set("data", "TAG", TagCustom);
-            _ini.Set("data", "ExpanseServer", ExpanseServerCustom);
+            _ini.Set("data", "FuelCannistersUsage", FuelCannistersUsageCustom);
             _ini.Set("data", "FuelAmount", customFuel);
             _ini.Set("data", "SetCargo", readCargoCustom);
             _ini.Set("data", "BaseContainersGroup", BaseContainersCustom);
@@ -321,7 +321,7 @@ namespace IngameScript
                 CustomDataCargo(container);
             }
             //all reactors
-            if (ExpanseServerCustom)
+            if (FuelCannistersUsageCustom)
             {
                 GridTerminalSystem.GetBlocksOfType(reactors);
                 foreach (var r in reactors)
@@ -554,7 +554,7 @@ namespace IngameScript
                 }
             }
             Echo(missingCargo.ToString());
-            TextWriting(LCDLog, LCDLogBool, $"{missingCargo}", true);
+            TextWriting(LCDLog, LCDLogBool, $"{missingCargo}", false);
             missingItems.Clear();
             missingCargo.Clear();
             //Echo($"{nestedDictionary.Count}");
@@ -783,6 +783,7 @@ namespace IngameScript
 
         IEnumerable<double> Sequence()
         {
+            string output="";
             while (true)
             {
                 if (Me.CubeGrid.IsStatic) { isStation = true; }
@@ -794,18 +795,20 @@ namespace IngameScript
                 /////////////////////
                 //FUSION CANISTERS
                 /////////////////////
-                if (ExpanseServerCustom)
+                if (FuelCannistersUsageCustom)
                 {
                     
                     if (!isStation )
                     {
                         //Echo("ship");
                         FuelTransfer(customFuel, reactors);
-                        TextWriting(LCDLog, LCDLogBool, "1)Pulling Fusion Canisters\n", false);
+                        output = LogCreation(0, 1, 1, 1, 1, 1);
+                        TextWriting(LCDLog, LCDLogBool, output, false);
                     }
                     if (isStation  )
                     {
-                        TextWriting(LCDLog, LCDLogBool, $"1)Looping through {reactors.Count} Reactors\n", false);
+                        output = LogCreation(0, 1, 1, 1,1,1);
+                        TextWriting(LCDLog, LCDLogBool, output, false);
                         //Echo("station");
                         MyItemType fuelCanister = new MyItemType("MyObjectBuilder_Ingot", "FusionFuel");
                         //Echo($"canister: {fuelCanister}");
@@ -822,7 +825,8 @@ namespace IngameScript
                                 //Echo($"fuel: {Math.Abs((int)fuelInReactor - customFuel)}");
                                 continue;
                             }
-                            TextWriting(LCDLog, LCDLogBool, $"1)Looping through {reactors.Count} Reactors\n", false);
+                            output = LogCreation(1,0,1,1,1,1);
+                            TextWriting(LCDLog, LCDLogBool, output, false);
                             //runtimeTot += runtime;
                             //Echo($"runtime: {runtimeTot}");
                             //Echo($"reactor: {r}");
@@ -831,7 +835,7 @@ namespace IngameScript
                             foreach (var cargo in allCargo)
                             {
 
-                                Echo($"Cargo allcargo: {cargo}");
+                                //Echo($"Cargo allcargo: {cargo}");
                                 MyInventoryItem? fuel = cargo.GetInventory().FindItem(fuelCanister);
                                 //runtimeTot += runtime;
                                 //Echo($"runtime: {runtimeTot}");
@@ -854,7 +858,8 @@ namespace IngameScript
                                     //Echo($"negative");
                                     var reverseFueling = fuelInReactor - (MyFixedPoint)customFuel;
                                     //Echo($"i'm transfering back{reverseFueling}");
-                                    TextWriting(LCDLog, LCDLogBool, $"1)Looping through {reactors.Count} Reactors\nPulling Fusion Canisters", false);
+                                    output = LogCreation(1, 1, 0, 1, 1, 1);
+                                    TextWriting(LCDLog, LCDLogBool, output, false);
                                     r.GetInventory().TransferItemTo(cargo.GetInventory(), (MyInventoryItem)fuelReactor, (int)reverseFueling);
                                     //Echo("finished back");
                                 }
@@ -864,7 +869,8 @@ namespace IngameScript
                                     if (!cargo.GetInventory().CanTransferItemTo(r.GetInventory(), fuelCanister) ||
                                     fuel == null)
                                     { continue; }
-                                    TextWriting(LCDLog, LCDLogBool, $"1)Looping through {reactors.Count} Reactors\nPulling Fusion Canisters", false);
+                                    output = LogCreation(1, 1, 0, 1, 1, 1);
+                                    TextWriting(LCDLog, LCDLogBool, output, false);
                                     cargo.GetInventory().TransferItemTo(r.GetInventory(), (MyInventoryItem)fuel, (int)fuelTransfering);
                                 }
                             }
@@ -882,7 +888,8 @@ namespace IngameScript
                 {
                     GridTerminalSystem.GetBlocksOfType(specialCargo, x => x.CustomName.Contains(specialContainersTagCustom));
                     GridTerminalSystem.GetBlocksOfType(specialConnector, x => x.CustomName.Contains(specialContainersTagCustom));
-                    TextWriting(LCDLog, LCDLogBool, $"2)Looping {specialCargo.Count + specialConnector.Count} Special Containers\n", false);
+                    output = LogCreation(1, 1, 1, 0, 1, 1);
+                    TextWriting(LCDLog, LCDLogBool, output, false);
                     if ((specialCargo != null && specialCargo.Count > 0))
                     {
                         //runtimeTot += runtime;
@@ -908,7 +915,8 @@ namespace IngameScript
                                 yield return yieldTime;
                                 foreach (var destC in allCargo)
                                 {
-                                    TextWriting(LCDLog, LCDLogBool, $"2)Looping {specialCargo.Count + specialConnector.Count} Special Containers\nPulling Special Containers", false);
+                                    output = LogCreation(1, 1, 1, 1, 0, 1);
+                                    TextWriting(LCDLog, LCDLogBool, output, false);
                                     container.GetInventory().TransferItemTo(destC.GetInventory(), i, i.Amount);
                                 }
                             }
@@ -930,7 +938,8 @@ namespace IngameScript
                                 yield return yieldTime;
                                 foreach (var destC in allCargo)
                                 {
-                                    TextWriting(LCDLog, LCDLogBool, $"2)Looping {specialCargo.Count + specialConnector.Count} Special Containers\nPulling Special Containers", false);
+                                    output = LogCreation(1, 1, 1, 1, 0, 1);
+                                    TextWriting(LCDLog, LCDLogBool, output, false);
                                     connectorInv.GetInventory().TransferItemTo(destC.GetInventory(), i, i.Amount);
                                 }
                             }
@@ -940,8 +949,9 @@ namespace IngameScript
                 /////////////////////
                 //LCD INVENTORY
                 /////////////////////
-                
-                TextWriting(LCDLog, LCDLogBool, "3)Updating Inventory LCD\n", false);
+
+                output = LogCreation(1, 1, 1, 1, 1, 0);
+                TextWriting(LCDLog, LCDLogBool, output, false);
                 yield return yieldTime;
 
                 if (LCDInvBool)
@@ -951,7 +961,7 @@ namespace IngameScript
                     List<MyItemType> acceptedItems = new List<MyItemType>();
                     //runtimeTot += runtime;
                     //Echo($"runtime: {runtimeTot}");
-                    StringBuilder output = new StringBuilder();
+                    StringBuilder outputInventory = new StringBuilder();
                     yield return yieldTime;
                     foreach (var oreQuota in oresName)
                     {
@@ -981,7 +991,7 @@ namespace IngameScript
                                 }
                                     
                             }
-                            output.Append($"{oreQuota.Key, -13}{"= " + Math.Round(totOre / oreQuota.Value, 2), 19}\n");
+                            outputInventory.Append($"{oreQuota.Key + " (Mass)", -13}{"= " + Math.Round(totOre / oreQuota.Value, 2), 19}\n");
                             
                             totOre = 0;
                         }
@@ -1024,24 +1034,50 @@ namespace IngameScript
                             //}
                             foreach (var kv in oreDict)
                             {
-                                output.Append($"{kv.Key, -10}{"= "+ Math.Round( kv.Value / oreQuota.Value,2), 17}\n");
+                                outputInventory.Append($"{kv.Key + " (Mass)", -10}{"= "+ Math.Round( kv.Value / oreQuota.Value,2), 17}\n");
                             }
                             oreDict.Clear();
                         }
                         
                     }
-                    InvTextWriting(output.ToString());
+                    InvTextWriting(outputInventory.ToString());
                 }
                 //runtimeTot = 0;
 
             }
-        }   
+        }
+        public string LogCreation(int intCanister1, int intCanister2, int intCanister3,
+            int intSpe1, int intSpec2, int intLcd1)
+        {
+            char[] canisterDelimiter1 = { '»', '\0' };
+            char[] canisterDelimiter2 = { '»', '\0' };
+            char[] canisterDelimiter3 = { '»', '\0' };
+            char[] specialDelimiter1 = {'»', '\0'};
+            char[] specialDelimiter2 = {'»', '\0'};
+            char[] lcdDelimiter1 = { '»', '\0' };
+            string turnOffCanister = "";
+            string turnOffSpecial = "";
+            string turnOffLCD = "";
+            if (!FuelCannistersUsageCustom)
+                turnOffCanister = "×";
+            if (!specialCargoUsageCustom)
+                turnOffSpecial = "×";
+            if (!LCDLogBool)
+                turnOffLCD = "×";
+            string output =
+                $"{canisterDelimiter1[intCanister1] + turnOffCanister + "1)Pulling Fusion Canisters;\n\t" + canisterDelimiter2[intCanister2] + "ºLooping through " + reactors.Count +" Reactors;\n"}" +
+                $"{"\t\t" + canisterDelimiter3[intCanister3] + "ººMoving Fuel Cannisters;\n\n"}" +
+                $"{specialDelimiter1[intSpe1] + turnOffSpecial + "2)Looping " + specialCargo.Count + specialConnector.Count + " Special Cargos"}" +
+                $"\n\t" + specialDelimiter2[intSpec2] + "ºPulling Special Cargos;\n\n" +
+                $"{lcdDelimiter1[intLcd1] + turnOffLCD + "3)Updating Inventory LCD;"}";
+            return output;
+        }
         public void TextWriting(IMyTextPanel LCD, bool lcdBool,string input, bool append)
         {
             if (lcdBool)
             {
                 string header = $"{lcd_divider}\n{lcd_title}\n           {version}\n{lcd_divider}\n" +
-                    $"Station: {isStation}\n{lcd_divider}\nCommands: start, stop, unload, reload\nrefresh, read&write, toggle\n{lcd_divider}\n";
+                    $"Station: {isStation}\n{lcd_divider}\nCOMMANDS:\nstart, stop, unload, reload\nrefresh, read&write, toggle\n{lcd_divider}\n";
                 LCD.WriteText(header + input, append);
             }
         }
