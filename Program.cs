@@ -85,8 +85,8 @@ namespace IngameScript
         IMyTextPanel LCDInv;
         bool LCDLogBool;
         bool LCDInvBool;
-        const string defaultHUDLCD = "hudlcd:-.7:.99:0.55";
-        const string defaultHUDLCDInv = "hudlcd:-.5:.99:0.55";
+        const string defaultHUDLCD = "hudlcd:-.7:.99:0.62";
+        const string defaultHUDLCDInv = "hudlcd:-.5:.99:0.62";
         Color lcd_font_colour = new Color(30, 144, 255, 255);
         
         //HUD STUFF
@@ -1064,10 +1064,11 @@ namespace IngameScript
                 turnOffSpecial = "×";
             if (!LCDLogBool)
                 turnOffLCD = "×";
+            int specialCargosTot = specialCargo.Count + specialConnector.Count;
             string output =
                 $"{canisterDelimiter1[intCanister1] + turnOffCanister + "1)Pulling Fusion Canisters;\n\t" + canisterDelimiter2[intCanister2] + "ºLooping through " + reactors.Count +" Reactors;\n"}" +
                 $"{"\t\t" + canisterDelimiter3[intCanister3] + "ººMoving Fuel Cannisters;\n\n"}" +
-                $"{specialDelimiter1[intSpe1] + turnOffSpecial + "2)Looping " + specialCargo.Count + specialConnector.Count + " Special Cargos"}" +
+                $"{specialDelimiter1[intSpe1] + turnOffSpecial + "2)Looping " + specialCargosTot + " Special Cargos"}" +
                 $"\n\t" + specialDelimiter2[intSpec2] + "ºPulling Special Cargos;\n\n" +
                 $"{lcdDelimiter1[intLcd1] + turnOffLCD + "3)Updating Inventory LCD;"}";
             return output;
