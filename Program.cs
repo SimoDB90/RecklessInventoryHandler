@@ -38,10 +38,10 @@ namespace IngameScript
         /// <summary>
         /// RIH - RECKLESS INVENTORY HANDLER
         /// By "RECKLESS"
-        /// CURRENT VERSION = V1.1.3
+        /// CURRENT VERSION = V1.1.4
         /// </summary>
 
-        const string version = "V: 1.1.3";
+        const string version = "V: 1.1.4";
         bool isStation;
         const int timeSpan = 1;
         
@@ -78,6 +78,7 @@ namespace IngameScript
         readonly List<IMyCargoContainer> allCargo = new List<IMyCargoContainer>();
         readonly List<IMyCargoContainer> specialCargo = new List<IMyCargoContainer> ();
         readonly List<IMyShipConnector> specialConnector = new List<IMyShipConnector> ();
+        readonly List<IMyCockpit> specialCockpit = new List<IMyCockpit>();
         readonly StringBuilder missingItems = new StringBuilder();
         readonly StringBuilder missingCargo = new StringBuilder();
 
@@ -159,7 +160,7 @@ namespace IngameScript
         }
         public void Main(string argument, UpdateType updateType)
         {
-            if ((updateType & (UpdateType.Terminal)) != 0)
+            if ((updateType & (UpdateType.Terminal | UpdateType.Trigger)) > 0)
             {
                 switch (argument.ToLower())
                 {
@@ -170,7 +171,7 @@ namespace IngameScript
 
                     case "stop":
                         Runtime.UpdateFrequency = UpdateFrequency.None;
-                        timerSM.Start();
+                        timerSM.Stop();
                         TextWriting(LCDLog, LCDLogBool, "Stopping Script", false);
                         break;
 
@@ -208,14 +209,14 @@ namespace IngameScript
 
                             else
                             {
-                                Echo("No Base Containers, change the Base's Cargos Group Name as BaseCargo");
-                                TextWriting(LCDLog, LCDLogBool,"No Base Containers, change the Base's Cargos Group Name as BaseCargo", false);
+                                Echo("No Base Containers:\nChange the Base's Cargos Group Name as BaseCargo\nOr check docking status");
+                                TextWriting(LCDLog, LCDLogBool,"No Base Containers:\nChange the Base's Cargos Group Name\n as BaseCargo\nOr check docking status", false);
                             }
                         }
-                        else
+                        else if(!ShipConnectedToBase())
                         {
-                            Echo("Ship is not Connected, or cargo has not been set. Conncect or change SetCargo to true in CD");
-                            TextWriting(LCDLog, LCDLogBool, $"{lcd_divider}\n{lcd_title}\n{lcd_divider}\nShip is not Connected, or cargo has not been set. Conncect or change SetCargo to true in CD", false);
+                            Echo("Ship is not Connected to Station");
+                            TextWriting(LCDLog, LCDLogBool, $"Ship is not Connected to Station", false);
                         }
                         Runtime.UpdateFrequency |= UpdateFrequency.None;
                         break;
@@ -231,21 +232,21 @@ namespace IngameScript
                                     //Echo("Ship Connected \nBase Cargo found");
                                     Unload(shipContainers, baseContainers);
                                     Echo("Unload Finished");
-                                    TextWriting(LCDLog, LCDLogBool,$"{ lcd_divider}\n{ lcd_title}\n{ lcd_divider}\nUnload Finished", false);
+                                    TextWriting(LCDLog, LCDLogBool,$"Unload Finished", false);
                                 }
                                 catch { Echo("Error Occurred"); TextWriting(LCDLog, LCDLogBool,"Error Occurred", false); }
                                 
                             }
                             else
                             {
-                                Echo("No Base Containers, change the Base's Cargos Group Name as BaseCargo");
-                                TextWriting(LCDLog, LCDLogBool, $"{lcd_divider}\n{lcd_title}\n{lcd_divider}\nNo Base Containers, change the Base's Cargos Group Name as BaseCargo", false);
+                                Echo("No Base Containers:\nChange the Base's Cargos Group Name as BaseCargo\nOr check docking status");
+                                TextWriting(LCDLog, LCDLogBool, $"No Base Containers:\nChange the Base's Cargos Group Name\n as BaseCargo\nOr check docking status", false);
                             }
                         }
-                        else
+                        else if(!ShipConnectedToBase())
                         {
-                            Echo("Ship is not Connected, or cargo has not been set. Conncect or change SetCargo to true in CD");
-                            TextWriting(LCDLog, LCDLogBool, $"{lcd_divider}\n{lcd_title}\n{lcd_divider}\nShip is not Connected, or cargo has not been set. Conncect or change SetCargo to true in CD", false);
+                            Echo("Ship is not Connected to Station");
+                            TextWriting(LCDLog, LCDLogBool, $"Ship is not Connected to Station", false);
                         }
                         Runtime.UpdateFrequency |= UpdateFrequency.None;
                         break;
@@ -255,7 +256,7 @@ namespace IngameScript
                         Runtime.UpdateFrequency |= UpdateFrequency.None;
                         ToggleOn();
                         Echo("Toggling On everything except for Epsteins and tools");
-                        TextWriting(LCDLog, LCDLogBool, $"{lcd_divider}\n{lcd_title}\n{lcd_divider}\nToggling On everything except for Epsteins\nand tools", false);
+                        TextWriting(LCDLog, LCDLogBool, $"Toggling On everything except for Epsteins\nand tools", false);
                         break;
 
                     default:
@@ -607,9 +608,10 @@ namespace IngameScript
                 MyIniParseResult result;
                 if (!_ini.TryParse(container.CustomData, out result))
                 {
-                    Echo("Add [Cargo] in the first line of Container custom data, or check for right formatting");
-                    TextWriting(LCDLog, LCDLogBool,"Add [Cargo] in the\nfirst line of Container custom data,\n or check for right formatting", false);
-                    throw new Exception(result.ToString());
+                    Echo("Add [Cargo] in the first line of Container custom data, or check for right formatting. Try to wipe out CD and recompile.");
+                    TextWriting(LCDLog, LCDLogBool,"Add [Cargo] in the\nfirst line of Container custom data,\n or check for right formatting.\n" +
+                        "Try to wipe out CD and recompile.", false);
+                    return;
                 }
 
                 else
@@ -800,12 +802,13 @@ namespace IngameScript
                     
                     if (!isStation )
                     {
-                        //Echo("ship");
-                        FuelTransfer(customFuel, reactors);
                         output = LogCreation(0, 1, 1, 1, 1, 1);
                         TextWriting(LCDLog, LCDLogBool, output, false);
+                        //Echo("ship");
+                        yield return yieldTime;
+                        FuelTransfer(customFuel, reactors);
                     }
-                    if (isStation  )
+                    if (isStation )
                     {
                         output = LogCreation(0, 1, 1, 1,1,1);
                         TextWriting(LCDLog, LCDLogBool, output, false);
@@ -884,10 +887,14 @@ namespace IngameScript
                 //SPECIAL CONTAINERS
                 /////////////////////
                 //Echo($"loopFuel: {imLoopingFuel}\nloopSpecial: {imLoopingSpecial}");
-                if(specialCargoUsageCustom)
+                output = LogCreation(1, 1, 1, 0, 1, 1);
+                TextWriting(LCDLog, LCDLogBool, output, false);
+                yield return yieldTime;
+                if (specialCargoUsageCustom)
                 {
                     GridTerminalSystem.GetBlocksOfType(specialCargo, x => x.CustomName.Contains(specialContainersTagCustom));
                     GridTerminalSystem.GetBlocksOfType(specialConnector, x => x.CustomName.Contains(specialContainersTagCustom));
+                    GridTerminalSystem.GetBlocksOfType(specialCockpit, x => x.CustomName.Contains(specialContainersTagCustom));
                     output = LogCreation(1, 1, 1, 0, 1, 1);
                     TextWriting(LCDLog, LCDLogBool, output, false);
                     if ((specialCargo != null && specialCargo.Count > 0))
@@ -945,6 +952,29 @@ namespace IngameScript
                             }
                         }
                     }
+                    if(specialCockpit!=null && specialCockpit.Count>0)
+                    {
+                        List<MyInventoryItem> items = new List<MyInventoryItem>();
+                        foreach (var cockpitInv in specialCockpit)
+                        {
+                            items.Clear();
+                            if (cockpitInv.GetInventory() == null) continue;
+                            yield return yieldTime;
+                            cockpitInv.GetInventory().GetItems(items);
+                            foreach (var i in items)
+                            {
+                                //Echo($"item: {i}");
+                                //Echo($"amount: {i.Amount}");
+                                yield return yieldTime;
+                                foreach (var destC in allCargo)
+                                {
+                                    output = LogCreation(1, 1, 1, 1, 0, 1);
+                                    TextWriting(LCDLog, LCDLogBool, output, false);
+                                    cockpitInv.GetInventory().TransferItemTo(destC.GetInventory(), i, i.Amount);
+                                }
+                            }
+                        }
+                    }
                 }
                 /////////////////////
                 //LCD INVENTORY
@@ -962,6 +992,8 @@ namespace IngameScript
                     //runtimeTot += runtime;
                     //Echo($"runtime: {runtimeTot}");
                     StringBuilder outputInventory = new StringBuilder();
+                    output = LogCreation(1, 1, 1, 1, 1, 0);
+                    TextWriting(LCDLog, LCDLogBool, output, false);
                     yield return yieldTime;
                     foreach (var oreQuota in oresName)
                     {
@@ -1064,7 +1096,7 @@ namespace IngameScript
                 turnOffSpecial = "×";
             if (!LCDInvBool)
                 turnOffLCD = "×";
-            int specialCargosTot = specialCargo.Count + specialConnector.Count;
+            int specialCargosTot = specialCargo.Count + specialConnector.Count + specialCockpit.Count;
             string output =
                 $"{canisterDelimiter1[intCanister1] + turnOffCanister + "1)Pulling Fusion Canisters;\n\t" + canisterDelimiter2[intCanister2] + "ºLooping through " + reactors.Count +" Reactors;\n"}" +
                 $"{"\t\t" + canisterDelimiter3[intCanister3] + "ººMoving Fuel Cannisters;\n\n"}" +
