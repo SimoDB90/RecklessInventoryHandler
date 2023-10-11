@@ -188,6 +188,7 @@ namespace IngameScript
                         break;
 
                     case "reload":
+                        Runtime.UpdateFrequency |= UpdateFrequency.None;
                         timerSM.Stop();
                         if (ShipConnectedToBase() && readCargoCustom)
                         {
@@ -218,10 +219,12 @@ namespace IngameScript
                             Echo("Ship is not Connected to Station");
                             TextWriting(LCDLog, LCDLogBool, $"Ship is not Connected to Station", false);
                         }
-                        Runtime.UpdateFrequency |= UpdateFrequency.None;
+                        
                         break;
 
                     case "unload":
+                        Runtime.UpdateFrequency |= UpdateFrequency.None;
+                        timerSM.Stop();
                         if (ShipConnectedToBase() && readCargoCustom)
                         {
                             List<IMyCargoContainer> baseContainers = GetCargoContainerBase(BaseContainersCustom);
@@ -248,7 +251,7 @@ namespace IngameScript
                             Echo("Ship is not Connected to Station");
                             TextWriting(LCDLog, LCDLogBool, $"Ship is not Connected to Station", false);
                         }
-                        Runtime.UpdateFrequency |= UpdateFrequency.None;
+                        
                         break;
 
                     case "toggle":
@@ -467,6 +470,7 @@ namespace IngameScript
                 }
             }
             Echo("Reload COMPLETED!\n");
+            TextWriting(LCDLog, LCDLogBool, $"Reload Completed!", false);
 
             foreach (var container in destinationContainers)
             {
