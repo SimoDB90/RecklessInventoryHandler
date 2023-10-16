@@ -846,7 +846,7 @@ namespace IngameScript
                                 MyInventoryItem? fuel = cargo.GetInventory().FindItem(fuelCanister);
                                 //runtimeTot += runtime;
                                 //Echo($"runtime: {runtimeTot}");
-                                if (Math.Abs((int)fuelInReactor - customFuel) >= 0 && Math.Abs((int)fuelInReactor - customFuel) < 3)
+                                if ((Math.Abs((int)fuelInReactor - customFuel) >= 0 && Math.Abs((int)fuelInReactor - customFuel) < 3) || fuel!=null)
                                 {
                                     //Echo($"fuel: {Math.Abs((int)fuelInReactor - customFuel)}");
                                     break;
@@ -1176,7 +1176,8 @@ namespace IngameScript
                 {
                     try
                     {
-                        if (Math.Abs((int)fuelInReactor - customFuel) >= 0 && Math.Abs((int)fuelInReactor - customFuel) < 3)
+                        var fuelInCargo = cargo.GetInventory().GetItemAmount(fuelCanister);
+                        if ((Math.Abs((int)fuelInReactor - customFuel) >= 0 && Math.Abs((int)fuelInReactor - customFuel) < 3) || fuelInCargo == 0)
                         {
                             //Echo($"fuel: {Math.Abs((int)fuelInReactor - customFuel)}");
                             break;
@@ -1188,6 +1189,7 @@ namespace IngameScript
                                     fuel == null)
                         { continue; }
                         fuelInReactor = r.GetInventory().GetItemAmount(fuelCanister);
+                        
                         MyFixedPoint fuelTransfering = (MyFixedPoint)fuelAmount - fuelInReactor;
                         //Echo($"fuelin difference {fuelTransfering}");
                         if (fuelTransfering < 0)
