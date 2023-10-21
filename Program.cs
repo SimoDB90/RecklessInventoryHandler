@@ -41,7 +41,7 @@ namespace IngameScript
         bool isStation;
         const int timeSpan = 1;
         readonly int yieldTime;
-        const double tickToSeconds = 1d/60d; //multiplying it by X seconds, returns the number of ticks
+        const double tickToSeconds = 1d / 60d; //multiplying it by X seconds, returns the number of ticks
         readonly MyIni _ini = new MyIni();
         readonly float fontsize = 0.5f; // font of lcd panel
 
@@ -75,8 +75,8 @@ namespace IngameScript
         List<IMyCargoContainer> baseContainers = new List<IMyCargoContainer>();
         readonly List<IMyReactor> reactors = new List<IMyReactor>();
         readonly List<IMyCargoContainer> allCargo = new List<IMyCargoContainer>();
-        readonly List<IMyCargoContainer> specialCargo = new List<IMyCargoContainer> ();
-        readonly List<IMyShipConnector> specialConnector = new List<IMyShipConnector> ();
+        readonly List<IMyCargoContainer> specialCargo = new List<IMyCargoContainer>();
+        readonly List<IMyShipConnector> specialConnector = new List<IMyShipConnector>();
         readonly List<IMyCockpit> specialCockpit = new List<IMyCockpit>();
         readonly StringBuilder missingItems = new StringBuilder();
         readonly StringBuilder missingCargo = new StringBuilder();
@@ -88,11 +88,11 @@ namespace IngameScript
         const string defaultHUDLCD = "hudlcd:-.7:.99:0.62";
         const string defaultHUDLCDInv = "hudlcd:-.5:.99:0.62";
         Color lcd_font_colour = new Color(30, 144, 255, 255);
-        
+
         //HUD STUFF
-        const string lcd_divider =       "------------------------------";
-        const string lcd_title =         "  RECKLESS INVENTORY HANDLER  ";
-        const string lcd_inv_title =     "       RIH INVENTORY LCD      ";
+        const string lcd_divider = "------------------------------";
+        const string lcd_title = "  RECKLESS INVENTORY HANDLER  ";
+        const string lcd_inv_title = "       RIH INVENTORY LCD      ";
         readonly Dictionary<IMyCargoContainer, Dictionary<MyDefinitionId, int>> itemDict = new Dictionary<IMyCargoContainer, Dictionary<MyDefinitionId, int>>();
         readonly MyItemType fuelCanister = new MyItemType("MyObjectBuilder_Ingot", "FusionFuel");
         //ores
@@ -100,18 +100,16 @@ namespace IngameScript
 
         //init Timer State machine
         readonly SimpleTimerSM timerSM;
-        readonly SlowTimerSM slowUnloadSM;
-        readonly SlowTimerSM slowReloadSM;
+        SlowTimerSM slowUnloadSM;
+        SlowTimerSM slowReloadSM;
         //runtime
         readonly Profiler profiler;
         double averageRT = 0;
         double maxRT = 0;
-        readonly int[] multTickList = new int[] { 1, 3, 10 };
+        readonly int[] multTickList = new int[] { 1, 2, 3 };
         int multTicks = 1;
         int loadingMultiplier = 0; //
         float loadingPercentage = 0; // perc of cargo slow loaded
-        int loadingItemsMultiplier = 0;
-        float loadingItemsPercentage = 0;
         bool slowReloadBool = false;
         bool slowUnloadBool = false;
         bool profilerBool = true;
@@ -123,7 +121,7 @@ namespace IngameScript
             profiler = new Profiler(this.Runtime);
             CustomData();
             Setup();
-            
+
             if (setupCompleted)
             {
                 Echo($"      SETUP COMPLETED:\n" +
@@ -139,7 +137,7 @@ namespace IngameScript
                     $"read&write: read tagged items and write in the CD\n" +
                     $"toggle: toggle all blcoks but Epsteins, tools, proj]");
 
-                
+
                 yieldTime = timeSpan * timeMultCustom;
                 Runtime.UpdateFrequency = UpdateFrequency.Update100;
             }
@@ -201,7 +199,7 @@ namespace IngameScript
                 {
                     multTicks = multTickList[2];
                     return;
-                } 
+                }
             }
             if ((updateType & (UpdateType.Terminal | UpdateType.Trigger)) > 0)
             {
@@ -247,7 +245,8 @@ namespace IngameScript
                                     //Echo("Load Finished");
                                     //TextWriting(LCD, LCDBool,"Load Finished", false);
                                 }
-                                catch { 
+                                catch
+                                {
                                     //Echo("Error Occurred"); 
                                     //TextWriting(LCD, LCDBool, $"{lcd_divider}\n{lcd_title}\n{lcd_divider}\nError Occurred\n", false);
                                 }
@@ -256,10 +255,10 @@ namespace IngameScript
                             else
                             {
                                 Echo("No Base Containers:\nChange the Base's Cargos Group Name as BaseCargo\nOr check docking status");
-                                TextWriting(LCDLog, LCDLogBool,"No Base Containers:\nChange the Base's Cargos Group Name\n as BaseCargo\nOr check docking status", false);
+                                TextWriting(LCDLog, LCDLogBool, "No Base Containers:\nChange the Base's Cargos Group Name\n as BaseCargo\nOr check docking status", false);
                             }
                         }
-                        else if(!ShipConnectedToBase())
+                        else if (!ShipConnectedToBase())
                         {
                             Echo("Ship is not Connected to Station");
                             TextWriting(LCDLog, LCDLogBool, $"Ship is not Connected to Station", false);
@@ -279,10 +278,10 @@ namespace IngameScript
                                     //Echo("Ship Connected \nBase Cargo found");
                                     FastUnload(shipContainers, baseContainers);
                                     Echo("Unload Finished");
-                                    TextWriting(LCDLog, LCDLogBool,$"Unload Finished", false);
+                                    TextWriting(LCDLog, LCDLogBool, $"Unload Finished", false);
                                 }
-                                catch { Echo("Error Occurred"); TextWriting(LCDLog, LCDLogBool,"Error Occurred", false); }
-                                
+                                catch { Echo("Error Occurred"); TextWriting(LCDLog, LCDLogBool, "Error Occurred", false); }
+
                             }
                             else
                             {
@@ -290,7 +289,7 @@ namespace IngameScript
                                 TextWriting(LCDLog, LCDLogBool, $"No Base Containers:\nChange the Base's Cargos Group Name\n as BaseCargo\nOr check docking status", false);
                             }
                         }
-                        else if(!ShipConnectedToBase())
+                        else if (!ShipConnectedToBase())
                         {
                             Echo("Ship is not Connected to Station");
                             TextWriting(LCDLog, LCDLogBool, $"Ship is not Connected to Station", false);
@@ -327,11 +326,11 @@ namespace IngameScript
                         break;
                 }
             }
-            if((updateType & (UpdateType.Update10)) > 0 && slowReloadBool)
+            if ((updateType & (UpdateType.Update10)) > 0 && slowReloadBool)
             {
                 slowReloadSM.Run();
             }
-            if((updateType & (UpdateType.Update10)) > 0 && slowUnloadBool)
+            if ((updateType & (UpdateType.Update10)) > 0 && slowUnloadBool)
             {
                 slowUnloadSM.Run();
             }
@@ -342,15 +341,15 @@ namespace IngameScript
         }
         public void Setup()
         {
-            if(Me.CubeGrid.IsStatic) { isStation = true; }
+            if (Me.CubeGrid.IsStatic) { isStation = true; }
             //LCD
-            GridTerminalSystem.GetBlocksOfType(LCDList, x => x.CustomName.Contains(TagCustom +".Log"));
-            if (LCDList == null && (LCDList.Count==0 || LCDList.Count>1))
+            GridTerminalSystem.GetBlocksOfType(LCDList, x => x.CustomName.Contains(TagCustom + ".Log"));
+            if (LCDList == null && (LCDList.Count == 0 || LCDList.Count > 1))
             {
                 Echo($"No LCD found or more than 1 LCD found \nUse [{TagDefault}] tag, or change it in Custom Data");
                 LCDLogBool = false;
             }
-            
+
             if (LCDList != null && LCDList.Count == 1)
             {
                 LCDLogBool = true;
@@ -367,8 +366,8 @@ namespace IngameScript
             }
             //inventory LCD
             LCDList.Clear();
-            GridTerminalSystem.GetBlocksOfType(LCDList, x=>x.CustomName.Contains(TagCustom+".Inventory"));
-            if(LCDList != null && LCDList.Count == 1)
+            GridTerminalSystem.GetBlocksOfType(LCDList, x => x.CustomName.Contains(TagCustom + ".Inventory"));
+            if (LCDList != null && LCDList.Count == 1)
             {
                 LCDInv = LCDList[0];
                 LCDInvBool = true;
@@ -384,9 +383,9 @@ namespace IngameScript
             }
             //cargo set up
             SetUpCargo(shipContainers, ShipContainersCustom);
-            if(!setupCompleted) { return; }
+            if (!setupCompleted) { return; }
 
-            
+
             //all reactors
             if (FuelCannistersUsageCustom)
             {
@@ -430,7 +429,7 @@ namespace IngameScript
                 setupCompleted = true;
                 customMultiplier = _ini.Get("Change this value to multiply all comps", "Multiplier").ToInt32(defaultMultiplier);
                 _ini.Set("Change this value to multiply all comps", "Multiplier", customMultiplier);
-                container.CustomData = _ini.ToString(); 
+                container.CustomData = _ini.ToString();
             }
         }
 
@@ -497,7 +496,7 @@ namespace IngameScript
                         List<MyInventoryItem> ShipItemsList = ItemToList(destinationContainer);
                         foreach (KeyValuePair<MyDefinitionId, int> itemEntry in containerItems)
                         {
-                            
+
                             MyDefinitionId itemId = itemEntry.Key;
                             int quantity = itemEntry.Value;
                             int startingListCount = ShipItemsList.Count;
@@ -506,8 +505,8 @@ namespace IngameScript
                             {
                                 if (ShipItemsList.Count == 0)
                                 {
-                                     sourceInventory.TransferItemTo(destinationInventory, (MyInventoryItem)itemSource, quantity);
-                                    
+                                    sourceInventory.TransferItemTo(destinationInventory, (MyInventoryItem)itemSource, quantity);
+
                                     //Echo($"ItemLoaded: {itemId} = {quantity}");
                                 }
                                 //Echo("itemsource!=null");
@@ -610,21 +609,21 @@ namespace IngameScript
                         int maxLength = 0;
                         int maxLengthAmount = 0;
                         //HUD STUFF
-                        const string lcd_divider_short =  "-";
+                        const string lcd_divider_short = "-";
                         foreach (var kv in nestedDictionary)
                         {
                             length = kv.Key.SubtypeName.Length + 7;
                             lengthAmount = kv.Value.ToString().Length;
-                            if (length > maxLength) { maxLength = length +1; }
-                            if(lengthAmount>maxLengthAmount) { maxLengthAmount = lengthAmount +1; }
+                            if (length > maxLength) { maxLength = length + 1; }
+                            if (lengthAmount > maxLengthAmount) { maxLengthAmount = lengthAmount + 1; }
 
                         }
                         foreach (var kv in nestedDictionary)
                         {
                             if (kv.Value == 0) { continue; }
-                            else { missingItems.Append($"Items: {kv.Key.SubtypeName.PadRight(maxLength)}= {MyFixedPoint.Max(kv.Value, 0), 3}\r\n"); }
+                            else { missingItems.Append($"Items: {kv.Key.SubtypeName.PadRight(maxLength)}= {MyFixedPoint.Max(kv.Value, 0),3}\r\n"); }
                         }
-                        if(missingItems.Length>0)
+                        if (missingItems.Length > 0)
                         {
                             missingCargo.Append($"{string.Concat(Enumerable.Repeat(lcd_divider_short, maxLength + 2 * maxLengthAmount + 2))}\n" +
                             $"Missing Items from Cargo = {container.CustomName}\r\n" +
@@ -632,7 +631,7 @@ namespace IngameScript
                             $"{missingItems}");
                             missingItems.Clear();
                         }
-                        else { missingCargo.Append($"");}
+                        else { missingCargo.Append($""); }
                     }
                 }
             }
@@ -642,7 +641,7 @@ namespace IngameScript
             missingCargo.Clear();
             //Echo($"{nestedDictionary.Count}");
         }
-  
+
         public List<MyInventoryItem> ItemToList(IMyCargoContainer destinationContainer)
         {
             //Echo("Enter the list");
@@ -687,7 +686,7 @@ namespace IngameScript
             itemDict.Clear();
             foreach (var container in shipContainers)
             {
-                
+
                 MyIniParseResult result;
                 if (!_ini.TryParse(container.CustomData, out result))
                 {
@@ -722,12 +721,12 @@ namespace IngameScript
                                     nested = new Dictionary<MyDefinitionId, int>();
                                     itemDict[container] = nested;
                                 }
-                                nested.Add(name, amount*customMultiplier);
+                                nested.Add(name, amount * customMultiplier);
                             }
                             else
                             {
                                 Echo("Wrong Value in one or more Items");
-                                TextWriting(LCDLog, LCDLogBool,"Wrong Value in one or more Items", false);
+                                TextWriting(LCDLog, LCDLogBool, "Wrong Value in one or more Items", false);
                             }
                         }
                     }
@@ -746,29 +745,29 @@ namespace IngameScript
             List<IMyCargoContainer> taggedCargos = new List<IMyCargoContainer>();
             GridTerminalSystem.GetBlocksOfType(taggedCargos, x => x.CustomName.Contains(TagCustom));
             _ini.Clear();
-            if (taggedCargos!=null && taggedCargos.Count> 0)
+            if (taggedCargos != null && taggedCargos.Count > 0)
             {
-                foreach(var c in taggedCargos)
+                foreach (var c in taggedCargos)
                 {
                     c.CustomData += _ini.DeleteSection("WrittenItems");
                     List<MyInventoryItem> items = new List<MyInventoryItem>();
                     c.GetInventory().GetItems(items);
-                    foreach(var i in items)
+                    foreach (var i in items)
                     {
                         CustomDataCargo(c);
                         //_ini.DeleteSection("Cargo");
-                        string itemName = i.Type.ToString().Replace("MyObjectBuilder_","");
+                        string itemName = i.Type.ToString().Replace("MyObjectBuilder_", "");
                         MyFixedPoint itemAmount = i.Amount;
                         //Echo($"1: {itemName}\n2:{itemAmount}");
                         TextWriting(LCDLog, LCDLogBool, itemName, false);
                         _ini.Set("WrittenItems", itemName, itemAmount.ToString());
                         c.CustomData = _ini.ToString();
                     }
-                    if(_ini.TryParse(c.CustomData))
+                    if (_ini.TryParse(c.CustomData))
                     {
                         TextWriting(LCDLog, LCDLogBool, "CD Created", false);
                     }
-                    else { TextWriting(LCDLog, LCDLogBool, "Error during the Parse", false ); }
+                    else { TextWriting(LCDLog, LCDLogBool, "Error during the Parse", false); }
                 }
             }
             else { TextWriting(LCDLog, LCDLogBool, "Cargo is empty!", false); }
@@ -828,7 +827,7 @@ namespace IngameScript
                 GridTerminalSystem.GetBlocksOfType(allGrinder);
                 GridTerminalSystem.GetBlocksOfType(allDrills);
                 GridTerminalSystem.GetBlocksOfType(allProj);
-                if(allWelders!=null && allWelders.Count>0)
+                if (allWelders != null && allWelders.Count > 0)
                 {
                     foreach (var w in allWelders)
                     {
@@ -863,7 +862,7 @@ namespace IngameScript
                                     "Are you a welwala, ke?\n" +
                                     "Get you blocks toggle on away from here Inyalowda";
                 Echo(output);
-                TextWriting(LCDLog, LCDLogBool,output, false);
+                TextWriting(LCDLog, LCDLogBool, output, false);
             }
         }
         public IEnumerable<double> SequenceUnload(List<IMyCargoContainer> sourceContainers)
@@ -902,14 +901,14 @@ namespace IngameScript
                             GridTerminalSystem.GetBlocksOfType(sourceConnectors);
                             foreach (var connector in sourceConnectors)
                             {
-                                unloadEcho = $"Unloading Connectors";
+                                unloadEcho = $"Unloading";
                                 TextWriting(LCDLog, LCDLogBool, unloadEcho, false);
                                 IMyInventory sourceConnectorInventory = connector.GetInventory();
                                 List<MyInventoryItem> ConnectorShipItemsList = new List<MyInventoryItem>();
                                 destinationContainer.GetInventory().GetItems(ConnectorShipItemsList);
                                 foreach (var connectorItem in ConnectorShipItemsList)
                                 {
-                                    unloadEcho = $"Unloading Connectors...";
+                                    unloadEcho = $"Unloading...";
                                     TextWriting(LCDLog, LCDLogBool, unloadEcho, false);
                                     sourceConnectorInventory.TransferItemTo(destinationInventory, connectorItem, connectorItem.Amount);
                                 }
@@ -936,12 +935,12 @@ namespace IngameScript
                 }
             }
         }
-            
+
         IEnumerable<double> SequenceReload(List<IMyCargoContainer> destinationContainers, Dictionary<IMyCargoContainer, Dictionary<MyDefinitionId, int>> itemDict)
         {
             while (true)
             {
-                string loadEcho = $"Starting loading\n{"0% ( " ,-28}" + $"{" ) 100%",4}";
+                string loadEcho = $"Starting loading\n{"0% ( ",-28}" + $"{" ) 100%",4}";
                 TextWriting(LCDLog, LCDLogBool, loadEcho, false);
                 if (ShipConnectedToBase() && readCargoCustom)
                 {
@@ -957,53 +956,41 @@ namespace IngameScript
                         {
                             loadingPercentage = (float)Math.Ceiling((double)(i + 1) * 100 / cargoCount);
                             loadingMultiplier = (int)Math.Ceiling(loadingPercentage / 10);
-                            loadEcho = $"Loading Cargo {i + 1} of {cargoCount}.\n{"0% ( " + string.Concat(Enumerable.Repeat("=", loadingMultiplier * 2)),-28}" + $"{" ) 100%",4}\n" +
-                                $"{"0% ( " + string.Concat(Enumerable.Repeat("=", 1)),-28}" + $"{" ) 100%",4}";
+                            loadEcho = $"Loading Cargo {i + 1} of {cargoCount}.\n{"0% ( " + string.Concat(Enumerable.Repeat("=", loadingMultiplier * 2)),-28}" + $"{" ) 100%",4}";
                             TextWriting(LCDLog, LCDLogBool, loadEcho, false);
-                            //yield return 9 * multTicks * tickToSeconds;
+                            yield return 36 * multTicks * tickToSeconds;
                             //Echo($"cargo: {destinationContainers[i].CustomName}");
                             IMyInventory destinationInventory = destinationContainers[i].GetInventory();
                             //Echo($"cargoInv: {destinationInventory}");
 
-                            foreach(var sourceContainer in baseContainers)
+                            foreach (var sourceContainer in baseContainers)
                             {
-                                
-                                //yield return 9 * multTicks * tickToSeconds;
                                 //Echo($"sourceInv: {sourceContainer.CustomName}");
                                 IMyInventory sourceInventory = sourceContainer.GetInventory();
                                 foreach (var container in itemDict.Keys)
                                 {
                                     //Echo($"container: {container}");
-                                    Dictionary<MyDefinitionId, int> containerItems = itemDict[container]; //items' name in custom data container
+                                    Dictionary<MyDefinitionId, int> containerItems = itemDict[container]; //item's name in custom data container
                                     List<MyInventoryItem> ShipItemsList = ItemToList(destinationContainers[i]); //create a list of items in the destination container
-                                    for(int z=0; z<containerItems.Count; z++)
+                                    foreach (KeyValuePair<MyDefinitionId, int> itemEntry in containerItems)
                                     {
-                                        yield return 9 * multTicks * tickToSeconds;
-                                        MyDefinitionId itemId = containerItems.ElementAt(z).Key;
-                                        int quantity = containerItems.ElementAt(z).Value;
+
+                                        MyDefinitionId itemId = itemEntry.Key;
+                                        int quantity = itemEntry.Value;
                                         int startingListCount = ShipItemsList.Count;
                                         MyInventoryItem? itemSource = sourceInventory.FindItem(itemId);
                                         if (itemSource != null && container == destinationContainers[i])
                                         {
-                                            int totItems = container.GetInventory().ItemCount;
-                                            if (totItems == containerItems.Count) break;
                                             if (ShipItemsList.Count == 0)
                                             {
                                                 yield return 9 * multTicks * tickToSeconds;
-                                                loadingItemsPercentage = (float)Math.Ceiling((double)(totItems) * 100 / containerItems.Count);
-                                                loadingItemsMultiplier = (int)Math.Ceiling(loadingItemsPercentage / 10);
-                                                loadEcho = $"z= {z}\nLoading Cargo {i + 1} of {cargoCount}..\n{"0% ( " + string.Concat(Enumerable.Repeat("=", loadingMultiplier * 2)),-28}" + $"{" ) 100%",4}\n" +
-                                                    $"{"0% ( " + string.Concat(Enumerable.Repeat("=", loadingItemsMultiplier * 2)),-28}" + $"{" ) 100%",4}";
+                                                loadEcho = $"Loading Cargo {i + 1} of {cargoCount}..\n{"0% ( " + string.Concat(Enumerable.Repeat("=", loadingMultiplier * 2)),-28}" + $"{" ) 100%",4}";
                                                 TextWriting(LCDLog, LCDLogBool, loadEcho, false);
                                                 sourceInventory.TransferItemTo(destinationInventory, (MyInventoryItem)itemSource, quantity);
 
                                                 //Echo($"ItemLoaded: {itemId} = {quantity}");
                                             }
-                                            
-                                            loadingItemsPercentage = (float)Math.Ceiling((double)(totItems) * 100 / containerItems.Count);
-                                            loadingItemsMultiplier = (int)Math.Ceiling(loadingItemsPercentage / 10);
-                                            loadEcho = $"z= {z}\nLoading Cargo {i + 1} of {cargoCount}..\n{"0% ( " + string.Concat(Enumerable.Repeat("=", loadingMultiplier * 2)),-28}" + $"{" ) 100%",4}\n" +
-                                                $"{"0% ( " + string.Concat(Enumerable.Repeat("=", loadingItemsMultiplier * 2)),-28}" + $"{" ) 100%",4}";
+                                            loadEcho = $"Loading Cargo {i + 1} of {cargoCount}...\n{"0% ( " + string.Concat(Enumerable.Repeat("=", loadingMultiplier * 2)),-28}" + $"{" ) 100%",4}";
                                             TextWriting(LCDLog, LCDLogBool, loadEcho, false);
                                             //Echo("itemsource!=null");
                                             if (ShipItemsList.Count > 0)
@@ -1013,19 +1000,13 @@ namespace IngameScript
                                                 {
                                                     if (itemId == (MyDefinitionId)ShipItemsList[j].Type)
                                                     {
-                                                        //yield return 9 * multTicks * tickToSeconds;
-                                                        totItems = container.GetInventory().ItemCount;
-                                                        if (totItems == containerItems.Count) break;
-                                                        loadingItemsPercentage = (float)Math.Ceiling((double)(totItems) * 100 / containerItems.Count);
-                                                        loadingItemsMultiplier = (int)Math.Ceiling(loadingItemsPercentage / 10);
-                                                        loadEcho = $"z=  {z} \nLoading Cargo {i + 1} of {cargoCount}..\n{"0% ( " + string.Concat(Enumerable.Repeat("=", loadingMultiplier * 2)),-28}" + $"{" ) 100%",4}\n" +
-                                                            $"{"0% ( " + string.Concat(Enumerable.Repeat("=", loadingItemsMultiplier * 2)),-28}" + $"{" ) 100%",4}";
+                                                        yield return 9 * multTicks * tickToSeconds;
+                                                        loadEcho = $"Loading Cargo {i + 1} of {cargoCount}..\n{"0% ( " + string.Concat(Enumerable.Repeat("=", loadingMultiplier * 2)),-28}" + $"{" ) 100%",4}";
                                                         TextWriting(LCDLog, LCDLogBool, loadEcho, false);
                                                         //Echo("loading");
                                                         MyFixedPoint itemCount = ShipItemsList[j].Amount;
                                                         MyFixedPoint zero = 0;
                                                         MyFixedPoint amountToPass = MyFixedPoint.Max(quantity - itemCount, zero);
-                                                        if (amountToPass == 0) break;
                                                         sourceInventory.TransferItemTo(destinationInventory, (MyInventoryItem)itemSource, amountToPass);
                                                         //Echo($"final list {ShipItemsList.Count}");
                                                         //Echo($"ItemLoaded: {ShipItemsList[i].Type.SubtypeId} = {amountToPass}");
@@ -1038,12 +1019,8 @@ namespace IngameScript
                                                         sourceInventory.TransferItemTo(destinationInventory, (MyInventoryItem)itemSource, quantity);
                                                         //Echo($"ItemLoaded: {itemId} = {quantity}");
                                                     }
-                                                    totItems = container.GetInventory().ItemCount;
-                                                    if (totItems == containerItems.Count) break;
-                                                    loadEcho = $"z=  {z} \nLoading Cargo {i + 1} of {cargoCount}..\n{"0% ( " + string.Concat(Enumerable.Repeat("=", loadingMultiplier * 2)),-28}" + $"{" ) 100%",4}\n" +
-                                                        $"{"0% ( " + string.Concat(Enumerable.Repeat("=", loadingItemsMultiplier * 2)),-28}" + $"{" ) 100%",4}";
+                                                    loadEcho = $"Loading Cargo {i + 1} of {cargoCount}.....\n{"0% ( " + string.Concat(Enumerable.Repeat("=", loadingMultiplier * 2)),-28}" + $"{" ) 100%",4}";
                                                     TextWriting(LCDLog, LCDLogBool, loadEcho, false);
-                                                    
                                                 }
                                             }
                                         }
@@ -1051,14 +1028,12 @@ namespace IngameScript
                                         {
                                             continue;
                                         }
-                                        if (z == containerItems.Count - 1)
-                                        {
-                                            Echo("ASD");
-                                            break;
-                                        }
                                     }
                                 }
                             }
+                            loadEcho = $"Loading Cargo {i} of {cargoCount}...\n{"0% ( " + string.Concat(Enumerable.Repeat("=", loadingMultiplier * 2)),-28}" + $"{" ) 100%",4}";
+                            TextWriting(LCDLog, LCDLogBool, loadEcho, false);
+
                         }
                         Echo("Reload COMPLETED!\n");
                         TextWriting(LCDLog, LCDLogBool, $"Reload Completed!", false);
@@ -1094,15 +1069,15 @@ namespace IngameScript
                                         {
                                             for (int i = missingItemsList.Count - 1; i > 0; i--)
                                             {
-                                                
+
                                                 if (itemId == (MyDefinitionId)missingItemsList[i].Type)
                                                 {
                                                     MyFixedPoint itemCount = missingItemsList[i].Amount;
                                                     MyFixedPoint missingQuantity = MyFixedPoint.Max(quantity - itemCount, 0);
-                                                    
+
                                                     if (missingQuantity != 0)
                                                     {
-                                                        nestedDictionary[itemId] += nestedDictionary.GetValueOrDefault(itemId,0) + missingQuantity;
+                                                        nestedDictionary[itemId] += nestedDictionary.GetValueOrDefault(itemId, 0) + missingQuantity;
                                                     }
                                                     missingItemsList.RemoveAt(i);
                                                 }
@@ -1111,7 +1086,7 @@ namespace IngameScript
                                                 if (finalListCount == startingListCount && i == 0)
                                                 {
                                                     //Echo($"itemDict: {itemEntry}; dictamount{quantity}; listQuant {missingItemsList[i].Amount};missquant {MyFixedPoint.Max(quantity - missingItemsList[i].Amount, 0)}; itemlist{missingItemsList[i].Type}");
-                                                    nestedDictionary[itemId] += nestedDictionary.GetValueOrDefault(itemId, 0)+ MyFixedPoint.Max(quantity, 0);
+                                                    nestedDictionary[itemId] += nestedDictionary.GetValueOrDefault(itemId, 0) + MyFixedPoint.Max(quantity, 0);
                                                 }
                                             }
                                         }
@@ -1154,7 +1129,6 @@ namespace IngameScript
                         missingCargo.Clear();
                         //Echo($"{nestedDictionary.Count}");
                         slowReloadBool = false;
-                        Runtime.UpdateFrequency = UpdateFrequency.None;
                         yield break;
                     }
 
@@ -1170,13 +1144,13 @@ namespace IngameScript
                     Echo("Ship is not Connected to Station");
                     TextWriting(LCDLog, LCDLogBool, $"Ship is not Connected to Station", false);
                     yield break;
-                } 
+                }
             }
-            
+
         }
         IEnumerable<double> Sequence()
         {
-            string output="";
+            string output = "";
             while (true)
             {
                 if (Me.CubeGrid.IsStatic) { isStation = true; }
@@ -1190,7 +1164,7 @@ namespace IngameScript
                 /////////////////////
                 if (FuelCannistersUsageCustom)
                 {
-                    if (!isStation && reactors!=null && reactors.Count>0)
+                    if (!isStation && reactors != null && reactors.Count > 0)
                     {
                         output = LogCreation(0, 1, 1, 1, 1, 1);
                         TextWriting(LCDLog, LCDLogBool, output, false);
@@ -1201,7 +1175,7 @@ namespace IngameScript
                     }
                     if (isStation && reactors != null && reactors.Count > 0)
                     {
-                        output = LogCreation(0, 1, 1, 1,1,1);
+                        output = LogCreation(0, 1, 1, 1, 1, 1);
                         TextWriting(LCDLog, LCDLogBool, output, false);
                         //Echo("station");
                         MyItemType fuelCanister = new MyItemType("MyObjectBuilder_Ingot", "FusionFuel");
@@ -1219,7 +1193,7 @@ namespace IngameScript
                                 //Echo($"fuel: {Math.Abs((int)fuelInReactor - customFuel)}");
                                 continue;
                             }
-                            output = LogCreation(1,0,1,1,1,1);
+                            output = LogCreation(1, 0, 1, 1, 1, 1);
                             TextWriting(LCDLog, LCDLogBool, output, false);
                             //runtimeTot += runtime;
                             //Echo($"runtime: {runtimeTot}");
@@ -1303,14 +1277,14 @@ namespace IngameScript
                             //runtimeTot += runtime;
                             //Echo($"runtime: {runtimeTot}");
                             yield return yieldTime;
-    
+
                             container.GetInventory().GetItems(items);
                             foreach (var i in items)
                             {
                                 //Echo($"item: {i}");
                                 //runtimeTot += runtime;
                                 //Echo($"runtime: {runtimeTot}");
-    
+
                                 yield return yieldTime;
                                 foreach (var destC in allCargo)
                                 {
@@ -1321,7 +1295,7 @@ namespace IngameScript
                             }
                         }
                     }
-                    if(specialConnector != null && specialConnector.Count > 0)
+                    if (specialConnector != null && specialConnector.Count > 0)
                     {
                         List<MyInventoryItem> items = new List<MyInventoryItem>();
                         foreach (var connectorInv in specialConnector)
@@ -1344,7 +1318,7 @@ namespace IngameScript
                             }
                         }
                     }
-                    if(specialCockpit!=null && specialCockpit.Count>0)
+                    if (specialCockpit != null && specialCockpit.Count > 0)
                     {
                         List<MyInventoryItem> items = new List<MyInventoryItem>();
                         foreach (var cockpitInv in specialCockpit)
@@ -1389,7 +1363,7 @@ namespace IngameScript
                     yield return yieldTime;
                     foreach (var oreQuota in oresName)
                     {
-                        if(oreQuota.Key.ToLower()!="ore")
+                        if (oreQuota.Key.ToLower() != "ore")
                         {
                             var oreType = MyItemType.MakeOre(oreQuota.Key);
                             float totOre = 0;
@@ -1413,27 +1387,27 @@ namespace IngameScript
                                     InvTextWriting($"{oreQuota.Key,-15}= not correctly written\n");
                                     break;
                                 }
-                                    
+
                             }
-                            outputInventory.Append($"{oreQuota.Key + " (Mass)", -13}{"= " + Math.Round(totOre / oreQuota.Value, 2), 19}\n");
-                            
+                            outputInventory.Append($"{oreQuota.Key + " (Mass)",-13}{"= " + Math.Round(totOre / oreQuota.Value, 2),19}\n");
+
                             totOre = 0;
                         }
-                        
+
                         else
                         {
                             Dictionary<string, float> oreDict = new Dictionary<string, float>();
                             List<MyInventoryItem> allInv = new List<MyInventoryItem>();
-                            
-                            
+
+
                             foreach (var c in allCargo)
                             {
                                 allInv.Clear();
                                 c.GetInventory().GetItems(allInv);
                                 //(Echo($"item: {allInv.Count}\n");
-                                foreach (var i  in allInv)
+                                foreach (var i in allInv)
                                 {
-                                    
+
                                     MyDefinitionId ore = i.Type;
                                     //Echo($"ore: {ore}\n");
 
@@ -1448,7 +1422,7 @@ namespace IngameScript
                                             oreDict[oreName] += (float)amount;
                                             //Me.CustomData+=$"DICT: {oreDict[oreName]}\n";
                                         }
-                                        else oreDict.Add(oreName, (float)amount); 
+                                        else oreDict.Add(oreName, (float)amount);
                                     }
                                 }
                             }
@@ -1458,11 +1432,11 @@ namespace IngameScript
                             //}
                             foreach (var kv in oreDict)
                             {
-                                outputInventory.Append($"{kv.Key + " (Mass)", -10}{"= "+ Math.Round( kv.Value / oreQuota.Value,2), 17}\n");
+                                outputInventory.Append($"{kv.Key + " (Mass)",-10}{"= " + Math.Round(kv.Value / oreQuota.Value, 2),17}\n");
                             }
                             oreDict.Clear();
                         }
-                        
+
                     }
                     InvTextWriting(outputInventory.ToString());
                 }
@@ -1476,8 +1450,8 @@ namespace IngameScript
             char[] canisterDelimiter1 = { '»', '\0' };
             char[] canisterDelimiter2 = { '»', '\0' };
             char[] canisterDelimiter3 = { '»', '\0' };
-            char[] specialDelimiter1 = {'»', '\0'};
-            char[] specialDelimiter2 = {'»', '\0'};
+            char[] specialDelimiter1 = { '»', '\0' };
+            char[] specialDelimiter2 = { '»', '\0' };
             char[] lcdDelimiter1 = { '»', '\0' };
             string turnOffCanister = "";
             string turnOffSpecial = "";
@@ -1490,18 +1464,18 @@ namespace IngameScript
                 turnOffLCD = "×";
             int specialCargosTot = specialCargo.Count + specialConnector.Count + specialCockpit.Count;
             string output =
-                $"{canisterDelimiter1[intCanister1] + turnOffCanister + "1)Pulling Fusion Canisters;\n\t" + canisterDelimiter2[intCanister2] + "ºLooping through " + reactors.Count +" Reactors;\n"}" +
+                $"{canisterDelimiter1[intCanister1] + turnOffCanister + "1)Pulling Fusion Canisters;\n\t" + canisterDelimiter2[intCanister2] + "ºLooping through " + reactors.Count + " Reactors;\n"}" +
                 $"{"\t\t" + canisterDelimiter3[intCanister3] + "ººMoving Fuel Cannisters;\n\n"}" +
                 $"{specialDelimiter1[intSpe1] + turnOffSpecial + "2)Looping " + specialCargosTot + " Special Cargos"}" +
                 $"\n\t" + specialDelimiter2[intSpec2] + "ºPulling Special Cargos;\n\n" +
                 $"{lcdDelimiter1[intLcd1] + turnOffLCD + "3)Updating Inventory LCD;"}";
             return output;
         }
-        public void TextWriting(IMyTextPanel LCD, bool lcdBool,string input, bool append)
+        public void TextWriting(IMyTextPanel LCD, bool lcdBool, string input, bool append)
         {
             if (lcdBool)
             {
-                string header = $"{lcd_divider}\n{lcd_title}\n           {version}\n" +
+                string header = $"{lcd_divider}\n{lcd_title}\n           {version}\n{lcd_divider}\n" +
                     $"{lcd_divider}\nCOMMANDS:\nstart, stop, fast_unload, \nfast_reload, slow_upload, slow_reload,\nrefresh, read&write, toggle\n{lcd_divider}\n";
                 LCD.WriteText(header + input, append);
             }
@@ -1511,7 +1485,7 @@ namespace IngameScript
             List<string> output = LCDInv.CustomData.Split('\n').ToList();
             Dictionary<string, float> result = new Dictionary<string, float>();
             output.RemoveAll(x => x.Contains("hudlcd"));
-            foreach(var i in output)
+            foreach (var i in output)
             {
                 var name = i.Split(' ')[0];
                 //Echo($"name: {name}");
@@ -1539,7 +1513,7 @@ namespace IngameScript
         }
         public void InvTextWriting(string input)
         {
-            if(LCDInv!=null)
+            if (LCDInv != null)
             {
                 string header = $"{lcd_divider}\n{lcd_inv_title}\n           {version}\n{lcd_divider}\n" +
                     $"Station: {isStation}\n{lcd_divider}\n";
@@ -1553,7 +1527,7 @@ namespace IngameScript
             {
                 TextWriting(LCDLog, LCDLogBool, "", false);
                 var fuelInReactor = r.GetInventory().GetItemAmount(fuelCanister);
-                
+
                 if (Math.Abs((int)fuelInReactor - customFuel) >= 0 && Math.Abs((int)fuelInReactor - customFuel) < 3)
                 {
                     //Echo($"fuel: {Math.Abs((int)fuelInReactor - customFuel)}");
@@ -1575,7 +1549,7 @@ namespace IngameScript
                                 )
                     { continue; }
                     fuelInReactor = r.GetInventory().GetItemAmount(fuelCanister);
-                        
+
                     MyFixedPoint fuelTransfering = (MyFixedPoint)fuelAmount - fuelInReactor;
                     //Echo($"fuelin difference {fuelTransfering}");
                     if (fuelTransfering < 0)
@@ -1623,7 +1597,7 @@ namespace IngameScript
             /// Time left until the next part is called.
             /// </summary>
             public double SequenceTimer { get; private set; }
-            
+
 
             private IEnumerator<double> sequenceSM;
             public SimpleTimerSM(Program program,
@@ -1774,7 +1748,7 @@ namespace IngameScript
                 if (sequenceSM == null)
                     return;
 
-                SequenceTimer -= Program.Runtime.TimeSinceLastRun.TotalSeconds*60d;
+                SequenceTimer -= Program.Runtime.TimeSinceLastRun.TotalSeconds * 60d;
 
                 if (SequenceTimer > 0)
                     return;
