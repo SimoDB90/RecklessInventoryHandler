@@ -27,6 +27,7 @@ using VRage.Game.GUI.TextPanel;
 using VRage.Game.ModAPI.Ingame;
 using VRage.Game.ModAPI.Ingame.Utilities;
 using VRage.Game.ObjectBuilders.Definitions;
+using VRage.Profiler;
 using VRageMath;
 using VRageRender.Messages;
 
@@ -35,17 +36,12 @@ namespace IngameScript
 {
     partial class Program : MyGridProgram
     {
-        /// <summary>
-        /// RIH - RECKLESS INVENTORY HANDLER
-        /// By "RECKLESS"
-        /// CURRENT VERSION = V1.1.4
-        /// </summary>
 
-        const string version = "V: 1.1.4";
+        const string version = "V: 1.2.0";
         bool isStation;
         const int timeSpan = 1;
-        
-        int yieldTime;
+        readonly int yieldTime;
+        const double tickToSeconds = 1d/60d; //multiplying it by X seconds, returns the number of ticks
         readonly MyIni _ini = new MyIni();
         readonly float fontsize = 0.5f; // font of lcd panel
 
@@ -71,9 +67,12 @@ namespace IngameScript
         bool specialCargoUsageCustom;
         const string specialContainersTagDefault = "Special";
         string specialContainersTagCustom;
+        const double maxRTDefault = 0.500;
+        double maxRTCustom;
 
         readonly List<IMyTextPanel> LCDList = new List<IMyTextPanel>();
         readonly List<IMyCargoContainer> shipContainers = new List<IMyCargoContainer>();
+        List<IMyCargoContainer> baseContainers = new List<IMyCargoContainer>();
         readonly List<IMyReactor> reactors = new List<IMyReactor>();
         readonly List<IMyCargoContainer> allCargo = new List<IMyCargoContainer>();
         readonly List<IMyCargoContainer> specialCargo = new List<IMyCargoContainer> ();
@@ -95,15 +94,31 @@ namespace IngameScript
         const string lcd_title =         "  RECKLESS INVENTORY HANDLER  ";
         const string lcd_inv_title =     "       RIH INVENTORY LCD      ";
         readonly Dictionary<IMyCargoContainer, Dictionary<MyDefinitionId, int>> itemDict = new Dictionary<IMyCargoContainer, Dictionary<MyDefinitionId, int>>();
-
+        readonly MyItemType fuelCanister = new MyItemType("MyObjectBuilder_Ingot", "FusionFuel");
         //ores
-        MyDefinitionId OreId = MyDefinitionId.Parse("Ore/");
+        readonly MyDefinitionId OreId = MyDefinitionId.Parse("Ore/");
 
         //init Timer State machine
         readonly SimpleTimerSM timerSM;
+        SlowTimerSM slowUnloadSM;
+        SlowTimerSM slowReloadSM;
+        //runtime
+        readonly Profiler profiler;
+        double averageRT = 0;
+        double maxRT = 0;
+        readonly int[] multTickList = new int[] { 1, 2, 3 };
+        int multTicks = 1;
+        int loadingMultiplier = 0; //
+        float loadingPercentage = 0; // perc of cargo slow loaded
+        bool slowReloadBool = false;
+        bool slowUnloadBool = false;
+        bool profilerBool = true;
         public Program()
         {
-            
+            timerSM = new SimpleTimerSM(this, Sequence());
+            slowUnloadSM = new SlowTimerSM(this, SequenceUnload(shipContainers));
+            slowReloadSM = new SlowTimerSM(this, SequenceReload(shipContainers, itemDict));
+            profiler = new Profiler(this.Runtime);
             CustomData();
             Setup();
             
@@ -111,21 +126,20 @@ namespace IngameScript
             {
                 Echo($"      SETUP COMPLETED:\n" +
                     $"Tag used: [{TagCustom}]\n" +
-                    $"Expanse Server = {FuelCannistersUsageCustom}\n" +
+                    $"Fuel Canister Usage = {FuelCannistersUsageCustom}\n" +
                     $"Found {shipContainers.Count} ship cargos\n" +
                     $"LCD.Log found {LCDLogBool}\n" +
                     $"LCD.Inv found {LCDInvBool}\n" +
                     $"[List of commands:\nstart: start auto pull\n" +
                     $"stop: suppress script and stealth drive\n" +
-                    $"reload: load the cargo with their custom data\n" +
-                    $"unload: unload all comps\nrefresh: re-read cargos' CD\n" +
+                    $"fast_reload: load the cargo with their custom data\n" +
+                    $"fast_unload: unload all comps\nrefresh: re-read cargos' CD\n" +
                     $"read&write: read tagged items and write in the CD\n" +
                     $"toggle: toggle all blcoks but Epsteins, tools, proj]");
 
+                
                 yieldTime = timeSpan * timeMultCustom;
                 Runtime.UpdateFrequency = UpdateFrequency.Update100;
-                timerSM = new SimpleTimerSM(this, Sequence());
-                
             }
         }
         public void CustomData()
@@ -141,6 +155,7 @@ namespace IngameScript
             specialCargoUsageCustom = _ini.Get("data", "SpecialCargoUsage").ToBoolean(specialCargoUsageDefault);
             specialContainersTagCustom = _ini.Get("data", "SpecialContainersTag").ToString(specialContainersTagDefault);
             timeMultCustom = _ini.Get("data", "Extra100Ticks").ToInt32(timeMultDefault);
+            maxRTCustom = _ini.Get("data", "MaxServerRuntime(ms)").ToDouble(maxRTDefault);
 
             if (!wasparsed)
             {
@@ -155,11 +170,37 @@ namespace IngameScript
             _ini.Set("data", "SpecialCargoUsage", specialCargoUsageCustom);
             _ini.Set("data", "SpecialContainersTag", specialContainersTagCustom);
             _ini.Set("data", "Extra100Ticks", timeMultCustom);
+            _ini.Set("data", "MaxServerRuntime(ms)", maxRTCustom);
 
             Me.CustomData = _ini.ToString();
         }
         public void Main(string argument, UpdateType updateType)
         {
+            if (profilerBool)
+            {
+                profiler.Run();
+                averageRT = Math.Round(profiler.RunningAverageMs, 2);
+                maxRT = Math.Round(profiler.MaxRuntimeMs, 2);
+                Echo($"AverageRT(ms): {averageRT}\nMaxRT(ms): {maxRT}\n" +
+                    $"Ticks Mult: {multTicks}");
+                if (averageRT <= 0.5 * maxRTCustom)
+                {
+                    multTicks = multTickList[0];
+                }
+                if (averageRT > 0.5 * maxRTCustom && averageRT < 0.75 * maxRTCustom)
+                {
+                    multTicks = multTickList[1];
+                }
+                if (averageRT > 0.75 * maxRTCustom && averageRT <= 0.85 * maxRTCustom)
+                {
+                    multTicks = multTickList[2];
+                }
+                if (averageRT > 0.85 * maxRTCustom)
+                {
+                    multTicks = multTickList[2];
+                    return;
+                } 
+            }
             if ((updateType & (UpdateType.Terminal | UpdateType.Trigger)) > 0)
             {
                 switch (argument.ToLower())
@@ -172,6 +213,8 @@ namespace IngameScript
                     case "stop":
                         Runtime.UpdateFrequency = UpdateFrequency.None;
                         timerSM.Stop();
+                        slowUnloadSM.Stop();
+                        slowReloadSM.Stop();
                         TextWriting(LCDLog, LCDLogBool, "Stopping Script", false);
                         break;
 
@@ -187,18 +230,18 @@ namespace IngameScript
                         ReadAndWrite();
                         break;
 
-                    case "reload":
+                    case "fast_reload":
                         Runtime.UpdateFrequency |= UpdateFrequency.None;
                         timerSM.Stop();
                         if (ShipConnectedToBase() && readCargoCustom)
                         {
-                            List<IMyCargoContainer> baseContainers = GetCargoContainerBase(BaseContainersCustom);
+                            baseContainers = GetCargoContainerBase(BaseContainersCustom);
                             if (baseContainers != null)
                             {
                                 try
                                 {
                                     //Echo("Ship Connected \nBase Cargo found");
-                                    Load(baseContainers, shipContainers, itemDict);
+                                    FastLoad(baseContainers, shipContainers, itemDict);
                                     //Echo("Load Finished");
                                     //TextWriting(LCD, LCDBool,"Load Finished", false);
                                 }
@@ -219,21 +262,20 @@ namespace IngameScript
                             Echo("Ship is not Connected to Station");
                             TextWriting(LCDLog, LCDLogBool, $"Ship is not Connected to Station", false);
                         }
-                        
                         break;
 
-                    case "unload":
+                    case "fast_unload":
                         Runtime.UpdateFrequency |= UpdateFrequency.None;
                         timerSM.Stop();
                         if (ShipConnectedToBase() && readCargoCustom)
                         {
-                            List<IMyCargoContainer> baseContainers = GetCargoContainerBase(BaseContainersCustom);
+                            baseContainers = GetCargoContainerBase(BaseContainersCustom);
                             if (baseContainers != null)
                             {
                                 try
                                 {
                                     //Echo("Ship Connected \nBase Cargo found");
-                                    Unload(shipContainers, baseContainers);
+                                    FastUnload(shipContainers, baseContainers);
                                     Echo("Unload Finished");
                                     TextWriting(LCDLog, LCDLogBool,$"Unload Finished", false);
                                 }
@@ -251,7 +293,22 @@ namespace IngameScript
                             Echo("Ship is not Connected to Station");
                             TextWriting(LCDLog, LCDLogBool, $"Ship is not Connected to Station", false);
                         }
-                        
+                        break;
+
+                    case "slow_unload":
+                        Runtime.UpdateFrequency = UpdateFrequency.Update10;
+                        slowUnloadBool = true;
+                        timerSM.Stop();
+                        slowUnloadSM.Start();
+                        //Echo($"unloading, bool = {slowUnloadBool}");
+                        break;
+
+                    case "slow_reload":
+                        Runtime.UpdateFrequency = UpdateFrequency.Update10;
+                        slowReloadBool = true;
+                        timerSM.Stop();
+                        slowReloadSM.Start();
+                        //Echo($"reloading, bool = {slowReloadBool}\nupdateFreq= {Runtime.UpdateFrequency} ticks");
                         break;
 
                     case "toggle":
@@ -268,10 +325,17 @@ namespace IngameScript
                         break;
                 }
             }
+            if((updateType & (UpdateType.Update10)) > 0 && slowReloadBool)
+            {
+                slowReloadSM.Run();
+            }
+            if((updateType & (UpdateType.Update10)) > 0 && slowUnloadBool)
+            {
+                slowUnloadSM.Run();
+            }
             else
             {
                 timerSM.Run();
-                
             }
         }
         public void Setup()
@@ -318,12 +382,9 @@ namespace IngameScript
             }
             //cargo set up
             SetUpCargo(shipContainers, ShipContainersCustom);
+            if(!setupCompleted) { return; }
 
-            foreach (var container in shipContainers)
-            {
-                //Echo($"{container.CustomName}");
-                CustomDataCargo(container);
-            }
+            
             //all reactors
             if (FuelCannistersUsageCustom)
             {
@@ -342,18 +403,33 @@ namespace IngameScript
 
         public void CustomDataCargo(IMyCargoContainer container)
         {
+            _ini.Clear();
             const int defaultMultiplier = 1;
             int customMultiplier;
             bool cargoWasparsed = _ini.TryParse(container.CustomData);
-            customMultiplier = _ini.Get("Change this value to multiply all comps", "Multiplier").ToInt32(defaultMultiplier);
             if (!cargoWasparsed)
             {
                 _ini.Clear();
+                profilerBool = false;
+                timerSM.Stop();
+                slowReloadSM.Stop();
+                slowUnloadSM.Stop();
+                _ini.AddSection("Cargo");
+                _ini.Set("Change this value to multiply all comps", "Multiplier", defaultMultiplier);
+                container.CustomData += _ini.ToString();
+                setupCompleted = false;
+                //container.CustomData += _ini.ToString();
+                Echo($"{container.CustomName}\n CD not Parsed! Adding: missing sections");
+                TextWriting(LCDLog, LCDLogBool, $"{container.CustomName}\n CD not Parsed! Adding: missing sections", false);
+                return;
             }
-            _ini.Set("Change this value to multiply all comps", "Multiplier", customMultiplier);
-            _ini.AddSection("Cargo");
-            
-            container.CustomData = _ini.ToString();
+            if (cargoWasparsed)
+            {
+                setupCompleted = true;
+                customMultiplier = _ini.Get("Change this value to multiply all comps", "Multiplier").ToInt32(defaultMultiplier);
+                _ini.Set("Change this value to multiply all comps", "Multiplier", customMultiplier);
+                container.CustomData = _ini.ToString(); 
+            }
         }
 
         public bool ShipConnectedToBase()
@@ -372,7 +448,7 @@ namespace IngameScript
             return false;
         }
 
-        public void Unload(List<IMyCargoContainer> sourceContainers, List<IMyCargoContainer> baseContainers)
+        public void FastUnload(List<IMyCargoContainer> sourceContainers, List<IMyCargoContainer> baseContainers)
         {
             foreach (IMyCargoContainer destinationContainer in baseContainers)
             {
@@ -402,7 +478,7 @@ namespace IngameScript
             }
         }
 
-        public void Load(List<IMyCargoContainer> sourceContainers, List<IMyCargoContainer> destinationContainers, Dictionary<IMyCargoContainer, Dictionary<MyDefinitionId, int>> itemDict)
+        public void FastLoad(List<IMyCargoContainer> sourceContainers, List<IMyCargoContainer> destinationContainers, Dictionary<IMyCargoContainer, Dictionary<MyDefinitionId, int>> itemDict)
         {
             TextWriting(LCDLog, LCDLogBool, "", false);
             //Echo($"We're loading up\nItems{itemDict.Count}");
@@ -583,9 +659,15 @@ namespace IngameScript
                 if (cargoShipBlock == null)
                 {
                     Echo($"Ship Cargo not found");
+                    setupCompleted = false;
                     return;
                 }
                 cargoShipBlock.GetBlocksOfType(shipContainers);
+                foreach (var container in shipContainers)
+                {
+                    //Echo($"{container.CustomName}");
+                    CustomDataCargo(container);
+                }
                 Parsing(shipContainers, itemDict);
             }
         }
@@ -594,11 +676,6 @@ namespace IngameScript
         {
             List<IMyCargoContainer> baseContainers = new List<IMyCargoContainer>();
             IMyBlockGroup BaseGroupContiners = GridTerminalSystem.GetBlockGroupWithName(BaseContainersCustom);
-
-            if (BaseGroupContiners == null)
-            {
-                return null;
-            }
             BaseGroupContiners.GetBlocksOfType(baseContainers);
             return baseContainers;
         }
@@ -612,9 +689,10 @@ namespace IngameScript
                 MyIniParseResult result;
                 if (!_ini.TryParse(container.CustomData, out result))
                 {
-                    Echo("Add [Cargo] in the first line of Container custom data, or check for right formatting. Try to wipe out CD and recompile.");
-                    TextWriting(LCDLog, LCDLogBool,"Add [Cargo] in the\nfirst line of Container custom data,\n or check for right formatting.\n" +
-                        "Try to wipe out CD and recompile.", false);
+                    //Echo("Add [Cargo] in the first line of Container custom data, or check for right formatting. Try to wipe out CD and recompile.");
+                    //TextWriting(LCDLog, LCDLogBool,"Add [Cargo] in the\nfirst line of Container custom data,\n or check for right formatting.\n" +
+                    //    "Try to wipe out CD and recompile.", false);
+                    setupCompleted = false;
                     return;
                 }
 
@@ -676,7 +754,7 @@ namespace IngameScript
                     foreach(var i in items)
                     {
                         CustomDataCargo(c);
-                        _ini.DeleteSection("Cargo");
+                        //_ini.DeleteSection("Cargo");
                         string itemName = i.Type.ToString().Replace("MyObjectBuilder_","");
                         MyFixedPoint itemAmount = i.Amount;
                         //Echo($"1: {itemName}\n2:{itemAmount}");
@@ -786,7 +864,289 @@ namespace IngameScript
                 TextWriting(LCDLog, LCDLogBool,output, false);
             }
         }
+        public IEnumerable<double> SequenceUnload(List<IMyCargoContainer> sourceContainers)
+        {
+            while (true)
+            {
+                string unloadEcho = $"Unloading";
+                TextWriting(LCDLog, LCDLogBool, unloadEcho, false);
+                if (ShipConnectedToBase() && readCargoCustom)
+                {
+                    baseContainers = GetCargoContainerBase(BaseContainersCustom);
+                    if (baseContainers != null)
+                    {
+                        //Echo("Ship Connected \nBase Cargo found");
+                        foreach (IMyCargoContainer destinationContainer in baseContainers)
+                        {
+                            unloadEcho = $"Unloading.....";
+                            TextWriting(LCDLog, LCDLogBool, unloadEcho, false);
+                            IMyInventory destinationInventory = destinationContainer.GetInventory();
+                            foreach (var sourceContainer in sourceContainers)
+                            {
+                                unloadEcho = $"Unloading";
+                                TextWriting(LCDLog, LCDLogBool, unloadEcho, false);
+                                yield return 9 * multTicks * tickToSeconds;
+                                IMyInventory sourceInventory = sourceContainer.GetInventory();
+                                var ShipItemsList = ItemToList(sourceContainer);
+                                foreach (var item in ShipItemsList)
+                                {
+                                    unloadEcho = $"Unloading...";
+                                    TextWriting(LCDLog, LCDLogBool, unloadEcho, false);
+                                    yield return 9 * multTicks * tickToSeconds;
+                                    sourceInventory.TransferItemTo(destinationInventory, item, item.Amount);
+                                }
+                            }
+                            List<IMyShipConnector> sourceConnectors = new List<IMyShipConnector>();
+                            GridTerminalSystem.GetBlocksOfType(sourceConnectors);
+                            foreach (var connector in sourceConnectors)
+                            {
+                                unloadEcho = $"Unloading";
+                                TextWriting(LCDLog, LCDLogBool, unloadEcho, false);
+                                IMyInventory sourceConnectorInventory = connector.GetInventory();
+                                List<MyInventoryItem> ConnectorShipItemsList = new List<MyInventoryItem>();
+                                destinationContainer.GetInventory().GetItems(ConnectorShipItemsList);
+                                foreach (var connectorItem in ConnectorShipItemsList)
+                                {
+                                    unloadEcho = $"Unloading...";
+                                    TextWriting(LCDLog, LCDLogBool, unloadEcho, false);
+                                    sourceConnectorInventory.TransferItemTo(destinationInventory, connectorItem, connectorItem.Amount);
+                                }
+                            }
+                        }
+                        slowUnloadBool = false;
+                        Echo("Unload Finished");
+                        TextWriting(LCDLog, LCDLogBool, $"Unload Finished", false);
+                        yield break;
 
+                    }
+                    else
+                    {
+                        Echo("No Base Containers:\nChange the Base's Cargos Group Name as BaseCargo\nOr check docking status");
+                        TextWriting(LCDLog, LCDLogBool, $"No Base Containers:\nChange the Base's Cargos Group Name\n as BaseCargo\nOr check docking status", false);
+                        yield break;
+                    }
+                }
+                else if (!ShipConnectedToBase())
+                {
+                    Echo("Ship is not Connected to Station");
+                    TextWriting(LCDLog, LCDLogBool, $"Ship is not Connected to Station", false);
+                    yield break;
+                }
+            }
+        }
+            
+        IEnumerable<double> SequenceReload(List<IMyCargoContainer> destinationContainers, Dictionary<IMyCargoContainer, Dictionary<MyDefinitionId, int>> itemDict)
+        {
+            while (true)
+            {
+                string loadEcho = $"Starting loading\n{"0% ( " ,-28}" + $"{" ) 100%",4}";
+                TextWriting(LCDLog, LCDLogBool, loadEcho, false);
+                if (ShipConnectedToBase() && readCargoCustom)
+                {
+                    baseContainers = GetCargoContainerBase(BaseContainersCustom);
+
+                    if (baseContainers != null)
+                    {
+                        //Echo("Ship Connected \nBase Cargo found");
+                        TextWriting(LCDLog, LCDLogBool, "", false);
+                        int cargoCount = destinationContainers.Count;
+                        //Echo($"We're loading up\nItems{itemDict.Count}");
+                        for (int i = 0; i < destinationContainers.Count; i++)
+                        {
+                            loadingPercentage = (float)Math.Ceiling((double)(i+1) * 100 / cargoCount);
+                            loadingMultiplier = (int)Math.Ceiling(loadingPercentage / 10);
+                            loadEcho = $"Loading Cargo {i + 1} of {cargoCount}.\n{"0% ( " + string.Concat(Enumerable.Repeat("=", loadingMultiplier * 2)),-28}" + $"{" ) 100%",4}";
+                            TextWriting(LCDLog, LCDLogBool, loadEcho, false);
+                            yield return 36 * multTicks * tickToSeconds;
+                            //Echo($"cargo: {destinationContainers[i].CustomName}");
+                            IMyInventory destinationInventory = destinationContainers[i].GetInventory();
+                            //Echo($"cargoInv: {destinationInventory}");
+
+                            foreach (var sourceContainer in baseContainers)
+                            {
+                                //Echo($"sourceInv: {sourceContainer.CustomName}");
+                                IMyInventory sourceInventory = sourceContainer.GetInventory();
+                                foreach (var container in itemDict.Keys)
+                                {
+                                    //Echo($"container: {container}");
+                                    Dictionary<MyDefinitionId, int> containerItems = itemDict[container]; //item's name in custom data container
+                                    List<MyInventoryItem> ShipItemsList = ItemToList(destinationContainers[i]); //create a list of items in the destination container
+                                    foreach (KeyValuePair<MyDefinitionId, int> itemEntry in containerItems)
+                                    {
+
+                                        MyDefinitionId itemId = itemEntry.Key;
+                                        int quantity = itemEntry.Value;
+                                        int startingListCount = ShipItemsList.Count;
+                                        MyInventoryItem? itemSource = sourceInventory.FindItem(itemId);
+                                        if (itemSource != null && container == destinationContainers[i])
+                                        {
+                                            if (ShipItemsList.Count == 0)
+                                            {
+                                                yield return 9 * multTicks * tickToSeconds;
+                                                loadEcho = $"Loading Cargo {i + 1} of {cargoCount}..\n{"0% ( " + string.Concat(Enumerable.Repeat("=", loadingMultiplier * 2)),-28}" + $"{" ) 100%",4}";
+                                                TextWriting(LCDLog, LCDLogBool, loadEcho, false);
+                                                sourceInventory.TransferItemTo(destinationInventory, (MyInventoryItem)itemSource, quantity);
+
+                                                //Echo($"ItemLoaded: {itemId} = {quantity}");
+                                            }
+                                            loadEcho = $"Loading Cargo {i + 1} of {cargoCount}...\n{"0% ( " + string.Concat(Enumerable.Repeat("=", loadingMultiplier * 2)),-28}" + $"{" ) 100%",4}";
+                                            TextWriting(LCDLog, LCDLogBool, loadEcho, false);
+                                            //Echo("itemsource!=null");
+                                            if (ShipItemsList.Count > 0)
+                                            {
+                                                //Echo("for loop");
+                                                for (int j = ShipItemsList.Count - 1; j >= 0; j--)
+                                                {
+                                                    if (itemId == (MyDefinitionId)ShipItemsList[j].Type)
+                                                    {
+                                                        yield return 9 * multTicks * tickToSeconds;
+                                                        loadEcho = $"Loading Cargo {i + 1} of {cargoCount}..\n{"0% ( " + string.Concat(Enumerable.Repeat("=", loadingMultiplier * 2)),-28}" + $"{" ) 100%",4}";
+                                                        TextWriting(LCDLog, LCDLogBool, loadEcho, false);
+                                                        //Echo("loading");
+                                                        MyFixedPoint itemCount = ShipItemsList[j].Amount;
+                                                        MyFixedPoint zero = 0;
+                                                        MyFixedPoint amountToPass = MyFixedPoint.Max(quantity - itemCount, zero);
+                                                        sourceInventory.TransferItemTo(destinationInventory, (MyInventoryItem)itemSource, amountToPass);
+                                                        //Echo($"final list {ShipItemsList.Count}");
+                                                        //Echo($"ItemLoaded: {ShipItemsList[i].Type.SubtypeId} = {amountToPass}");
+                                                        ShipItemsList.RemoveAt(j);
+                                                    }
+                                                    int finalListCount = ShipItemsList.Count;
+                                                    if (finalListCount == startingListCount && j == 0)
+                                                    {
+                                                        yield return 9 * multTicks * tickToSeconds;
+                                                        sourceInventory.TransferItemTo(destinationInventory, (MyInventoryItem)itemSource, quantity);
+                                                        //Echo($"ItemLoaded: {itemId} = {quantity}");
+                                                    }
+                                                    loadEcho = $"Loading Cargo {i + 1} of {cargoCount}.....\n{"0% ( " + string.Concat(Enumerable.Repeat("=", loadingMultiplier * 2)),-28}" + $"{" ) 100%",4}";
+                                                    TextWriting(LCDLog, LCDLogBool, loadEcho, false);
+                                                }
+                                            }
+                                        }
+                                        else
+                                        {
+                                            continue;
+                                        }
+                                    }
+                                }
+                            }
+                            loadEcho = $"Loading Cargo {i} of {cargoCount}...\n{"0% ( " + string.Concat(Enumerable.Repeat("=", loadingMultiplier * 2)),-28}" + $"{" ) 100%",4}";
+                            TextWriting(LCDLog, LCDLogBool, loadEcho, false);
+                            
+                        }
+                        Echo("Reload COMPLETED!\n");
+                        TextWriting(LCDLog, LCDLogBool, $"Reload Completed!", false);
+
+                        foreach (var container in destinationContainers)
+                        {
+                            int customMultiplier;
+                            customMultiplier = _ini.Get("Change this value to multiply all comps below", "Multiplier").ToInt32();
+                            foreach (var dictContainer in itemDict.Keys)
+                            {
+                                if (container == dictContainer)
+                                {
+                                    //Echo("missing items dict creation");
+                                    Dictionary<MyDefinitionId, MyFixedPoint> nestedDictionary = new Dictionary<MyDefinitionId, MyFixedPoint>();
+                                    //Echo("custom data dict per container");
+                                    Dictionary<MyDefinitionId, int> containerItems = itemDict[dictContainer]; //item's name in custom data container
+                                    //Echo("list creation");
+                                    List<MyInventoryItem> missingItemsList = ItemToList(container);
+                                    //Echo("finish");
+                                    foreach (KeyValuePair<MyDefinitionId, int> itemEntry in containerItems)
+                                    {
+                                        int startingListCount = missingItemsList.Count;
+                                        //Echo($"{startingListCount}");
+                                        MyDefinitionId itemId = itemEntry.Key;
+                                        MyFixedPoint quantity = itemEntry.Value * customMultiplier;
+
+                                        if (missingItemsList.Count == 0)
+                                        {
+                                            //Echo($"Missing Items: Cargo:{container}; {nestedDictionary.Keys}={nestedDictionary.Values}");
+                                            nestedDictionary[itemId] += nestedDictionary.GetValueOrDefault(itemId, 0) + quantity;
+                                        }
+                                        if (missingItemsList.Count > 0)
+                                        {
+                                            for (int i = missingItemsList.Count - 1; i > 0; i--)
+                                            {
+                                                
+                                                if (itemId == (MyDefinitionId)missingItemsList[i].Type)
+                                                {
+                                                    MyFixedPoint itemCount = missingItemsList[i].Amount;
+                                                    MyFixedPoint missingQuantity = MyFixedPoint.Max(quantity - itemCount, 0);
+                                                    
+                                                    if (missingQuantity != 0)
+                                                    {
+                                                        nestedDictionary[itemId] += nestedDictionary.GetValueOrDefault(itemId,0) + missingQuantity;
+                                                    }
+                                                    missingItemsList.RemoveAt(i);
+                                                }
+                                                int finalListCount = missingItemsList.Count;
+                                                //Echo($"finalListCount= {finalListCount}");
+                                                if (finalListCount == startingListCount && i == 0)
+                                                {
+                                                    //Echo($"itemDict: {itemEntry}; dictamount{quantity}; listQuant {missingItemsList[i].Amount};missquant {MyFixedPoint.Max(quantity - missingItemsList[i].Amount, 0)}; itemlist{missingItemsList[i].Type}");
+                                                    nestedDictionary[itemId] += nestedDictionary.GetValueOrDefault(itemId, 0)+ MyFixedPoint.Max(quantity, 0);
+                                                }
+                                            }
+                                        }
+                                    }
+                                    //Echo("Finish");
+                                    int length;
+                                    int lengthAmount;
+                                    int maxLength = 0;
+                                    int maxLengthAmount = 0;
+                                    //HUD STUFF
+                                    const string lcd_divider_short = "-";
+                                    foreach (var kv in nestedDictionary)
+                                    {
+                                        length = kv.Key.SubtypeName.Length + 7;
+                                        lengthAmount = kv.Value.ToString().Length;
+                                        if (length > maxLength) { maxLength = length + 1; }
+                                        if (lengthAmount > maxLengthAmount) { maxLengthAmount = lengthAmount + 1; }
+
+                                    }
+                                    foreach (var kv in nestedDictionary)
+                                    {
+                                        if (kv.Value == 0) { continue; }
+                                        else { missingItems.Append($"Items: {kv.Key.SubtypeName.PadRight(maxLength)}= {MyFixedPoint.Max(kv.Value, 0),3}\r\n"); }
+                                    }
+                                    if (missingItems.Length > 0)
+                                    {
+                                        missingCargo.Append($"{string.Concat(Enumerable.Repeat(lcd_divider_short, maxLength + 2 * maxLengthAmount + 2))}\n" +
+                                        $"Missing Items from Cargo = {container.CustomName}\r\n" +
+                                        $"{string.Concat(Enumerable.Repeat(lcd_divider_short, maxLength + 2 * maxLengthAmount + 2))}\n" +
+                                        $"{missingItems}");
+                                        missingItems.Clear();
+                                    }
+                                    else { missingCargo.Append($""); }
+                                }
+                            }
+                        }
+                        //Echo(missingCargo.ToString());
+                        TextWriting(LCDLog, LCDLogBool, $"Reload Completed!\n{missingCargo}", false);
+                        missingItems.Clear();
+                        missingCargo.Clear();
+                        //Echo($"{nestedDictionary.Count}");
+                        slowReloadBool = false;
+                        yield break;
+                    }
+
+                    else
+                    {
+                        Echo("No Base Containers:\nChange the Base's Cargos Group Name as BaseCargo\nOr check docking status");
+                        TextWriting(LCDLog, LCDLogBool, "No Base Containers:\nChange the Base's Cargos Group Name\n as BaseCargo\nOr check docking status", false);
+                        yield break;
+                    }
+                }
+                else if (!ShipConnectedToBase())
+                {
+                    Echo("Ship is not Connected to Station");
+                    TextWriting(LCDLog, LCDLogBool, $"Ship is not Connected to Station", false);
+                    yield break;
+                } 
+            }
+            
+        }
         IEnumerable<double> Sequence()
         {
             string output="";
@@ -803,16 +1163,16 @@ namespace IngameScript
                 /////////////////////
                 if (FuelCannistersUsageCustom)
                 {
-                    
-                    if (!isStation )
+                    if (!isStation && reactors!=null && reactors.Count>0)
                     {
                         output = LogCreation(0, 1, 1, 1, 1, 1);
                         TextWriting(LCDLog, LCDLogBool, output, false);
                         //Echo("ship");
+                        //Echo($"yieldtime = {yieldTime}");
                         yield return yieldTime;
                         FuelTransfer(customFuel, reactors);
                     }
-                    if (isStation )
+                    if (isStation && reactors != null && reactors.Count > 0)
                     {
                         output = LogCreation(0, 1, 1, 1,1,1);
                         TextWriting(LCDLog, LCDLogBool, output, false);
@@ -846,11 +1206,12 @@ namespace IngameScript
                                 MyInventoryItem? fuel = cargo.GetInventory().FindItem(fuelCanister);
                                 //runtimeTot += runtime;
                                 //Echo($"runtime: {runtimeTot}");
-                                if ((Math.Abs((int)fuelInReactor - customFuel) >= 0 && Math.Abs((int)fuelInReactor - customFuel) < 3) || fuel!=null)
+                                if ((Math.Abs((int)fuelInReactor - customFuel) >= 0 && Math.Abs((int)fuelInReactor - customFuel) < 3))
                                 {
                                     //Echo($"fuel: {Math.Abs((int)fuelInReactor - customFuel)}");
                                     break;
                                 }
+                                if (fuel == null) continue;
                                 //Echo($"fuelcan{fuel}");
                                 fuelInReactor = r.GetInventory().GetItemAmount(fuelCanister);
                                 //Echo($"fuel in reactor {fuelInReactor}");
@@ -1114,7 +1475,7 @@ namespace IngameScript
             if (lcdBool)
             {
                 string header = $"{lcd_divider}\n{lcd_title}\n           {version}\n{lcd_divider}\n" +
-                    $"Station: {isStation}\n{lcd_divider}\nCOMMANDS:\nstart, stop, unload, reload\nrefresh, read&write, toggle\n{lcd_divider}\n";
+                    $"{lcd_divider}\nCOMMANDS:\nstart, stop, fast_unload, \nfast_reload, slow_upload, slow_reload,\nrefresh, read&write, toggle\n{lcd_divider}\n";
                 LCD.WriteText(header + input, append);
             }
         }
@@ -1160,13 +1521,12 @@ namespace IngameScript
         }
         public void FuelTransfer(int fuelAmount, List<IMyReactor> reactors)
         {
-            MyItemType fuelCanister = new MyItemType("MyObjectBuilder_Ingot", "FusionFuel");
-            
-            //Echo($"fuelcan{fuelCanister}");
+            //Echo($"fuelcan {fuelCanister}");
             foreach (var r in reactors)
             {
                 TextWriting(LCDLog, LCDLogBool, "", false);
                 var fuelInReactor = r.GetInventory().GetItemAmount(fuelCanister);
+                
                 if (Math.Abs((int)fuelInReactor - customFuel) >= 0 && Math.Abs((int)fuelInReactor - customFuel) < 3)
                 {
                     //Echo($"fuel: {Math.Abs((int)fuelInReactor - customFuel)}");
@@ -1174,43 +1534,39 @@ namespace IngameScript
                 }
                 foreach (var cargo in allCargo)
                 {
-                    try
+                    var fuelInCargo = cargo.GetInventory().GetItemAmount(fuelCanister);
+                    //Echo($"fuelInCargo {fuelInCargo}");
+                    MyInventoryItem? fuel = cargo.GetInventory().FindItem(fuelCanister);
+                    if ((Math.Abs((int)fuelInReactor - customFuel) >= 0 && Math.Abs((int)fuelInReactor - customFuel) < 3) || fuelInCargo == 0)
                     {
-                        var fuelInCargo = cargo.GetInventory().GetItemAmount(fuelCanister);
-                        if ((Math.Abs((int)fuelInReactor - customFuel) >= 0 && Math.Abs((int)fuelInReactor - customFuel) < 3) || fuelInCargo == 0)
-                        {
-                            //Echo($"fuel: {Math.Abs((int)fuelInReactor - customFuel)}");
-                            break;
-                        }
-                        MyInventoryItem? fuel = cargo.GetInventory().FindItem(fuelCanister);
-                        //Echo($"fuelcan{fuel}");
-                        //Echo($"fuel in reactor {fuelInReactor}");
-                        if (!cargo.GetInventory().CanTransferItemTo(r.GetInventory(), fuelCanister) ||
-                                    fuel == null)
-                        { continue; }
-                        fuelInReactor = r.GetInventory().GetItemAmount(fuelCanister);
-                        
-                        MyFixedPoint fuelTransfering = (MyFixedPoint)fuelAmount - fuelInReactor;
-                        //Echo($"fuelin difference {fuelTransfering}");
-                        if (fuelTransfering < 0)
-                        {
-                            MyInventoryItem? fuelReactor = r.GetInventory().FindItem(fuelCanister);
-                            //Echo($"negative");
-                            var reverseFueling = fuelInReactor - (MyFixedPoint)fuelAmount;
-                            //Echo($"i'm transfering back{reverseFueling}");
-                            r.GetInventory().TransferItemTo(cargo.GetInventory(), (MyInventoryItem)fuelReactor, (int)reverseFueling);
-                            //Echo("finished back");
-                        }
-                        else if (fuelTransfering >= 0)
-                        {
-                            if (!cargo.GetInventory().CanTransferItemTo(r.GetInventory(), fuelCanister) ||
-                                    fuel == null)
-                            { continue; }
-                            TextWriting(LCDLog, LCDLogBool, "Pulling Fusion Canisters", false);
-                            cargo.GetInventory().TransferItemTo(r.GetInventory(), (MyInventoryItem)fuel, (int)fuelTransfering);
-                        }
+                        //Echo($"fuel: {Math.Abs((int)fuelInReactor - customFuel)}");
+                        continue;
                     }
-                    catch { }
+                    //Echo($"fuelcan{fuel}");
+                    //Echo($"fuel in reactor {fuelInReactor}");
+                    if (!cargo.GetInventory().CanTransferItemTo(r.GetInventory(), fuelCanister)
+                                )
+                    { continue; }
+                    fuelInReactor = r.GetInventory().GetItemAmount(fuelCanister);
+                        
+                    MyFixedPoint fuelTransfering = (MyFixedPoint)fuelAmount - fuelInReactor;
+                    //Echo($"fuelin difference {fuelTransfering}");
+                    if (fuelTransfering < 0)
+                    {
+                        MyInventoryItem? fuelReactor = r.GetInventory().FindItem(fuelCanister);
+                        //Echo($"negative");
+                        var reverseFueling = fuelInReactor - (MyFixedPoint)fuelAmount;
+                        //Echo($"i'm transfering back{reverseFueling}");
+                        r.GetInventory().TransferItemTo(cargo.GetInventory(), (MyInventoryItem)fuelReactor, (int)reverseFueling);
+                        //Echo("finished back");
+                    }
+                    else if (fuelTransfering >= 0)
+                    {
+                        if (!cargo.GetInventory().CanTransferItemTo(r.GetInventory(), fuelCanister))
+                        { continue; }
+                        TextWriting(LCDLog, LCDLogBool, "Pulling Fusion Canisters", false);
+                        cargo.GetInventory().TransferItemTo(r.GetInventory(), (MyInventoryItem)fuel, (int)fuelTransfering);
+                    }
                 }
             }
         }
@@ -1240,15 +1596,15 @@ namespace IngameScript
             /// Time left until the next part is called.
             /// </summary>
             public double SequenceTimer { get; private set; }
+            
 
             private IEnumerator<double> sequenceSM;
-
-            public SimpleTimerSM(Program program, IEnumerable<double> sequence = null, bool autoStart = true)
+            public SimpleTimerSM(Program program,
+                IEnumerable<double> sequence = null, bool autoStart = true)
             {
                 Program = program;
                 Sequence = sequence;
                 AutoStart = autoStart;
-
                 if (AutoStart)
                 {
                     Start();
@@ -1323,7 +1679,203 @@ namespace IngameScript
                 }
             }
         }
+        public class SlowTimerSM
+        {
+            public readonly Program Program;
 
+            /// <summary>
+            /// Wether the timer starts automatically at initialization and auto-restarts it's done iterating.
+            /// </summary>
+            public bool AutoStart { get; set; }
+
+            /// <summary>
+            /// <para>Returns true if a sequence is actively being cycled through.</para>
+            /// <para>False if it ended, got stopped or no sequence is assigned anymore.</para>
+            /// </summary>
+            public bool Running { get; private set; }
+
+            /// <summary>
+            /// <para>The sequence used by Start(). Can be null.</para>
+            /// <para>Setting this will not automatically start it.</para>
+            /// </summary>
+            public IEnumerable<double> Sequence { get; set; }
+
+            /// <summary>
+            /// Time left until the next part is called.
+            /// </summary>
+            public double SequenceTimer { get; private set; }
+
+
+            private IEnumerator<double> sequenceSM;
+            public SlowTimerSM(Program program, IEnumerable<double> sequence = null, bool autoStart = true)
+            {
+                Program = program;
+                Sequence = sequence;
+                AutoStart = autoStart;
+                if (AutoStart)
+                {
+                    Start();
+                }
+            }
+
+            /// <summary>
+            /// <para>Starts or restarts the sequence declared in Sequence property.</para>
+            /// <para>If it's already running, it will be stoped and started from the begining.</para>
+            /// <para>Don't forget to set Runtime.UpdateFrequency and call this class' Run() in Main().</para>
+            /// </summary>
+            public void Start()
+            {
+                SetSequenceSM(Sequence);
+            }
+
+            /// <summary>
+            /// <para>Stops the sequence from progressing.</para>
+            /// <para>Calling Start() after this will start the sequence from the begining (the one declared in Sequence property).</para>
+            /// </summary>
+            public void Stop()
+            {
+                SetSequenceSM(null);
+            }
+
+            /// <summary>
+            /// <para>Call this in your Program's Main() and have a reasonable update frequency, usually Update10 is good for small delays, Update100 for 2s or more delays.</para>
+            /// <para>Checks if enough time passed and executes the next chunk in the sequence.</para>
+            /// <para>Does nothing if no sequence is assigned or it's ended.</para>
+            /// </summary>
+            public void Run()
+            {
+                if (sequenceSM == null)
+                    return;
+
+                SequenceTimer -= Program.Runtime.TimeSinceLastRun.TotalSeconds*60d;
+
+                if (SequenceTimer > 0)
+                    return;
+
+                bool hasValue = sequenceSM.MoveNext();
+
+                if (hasValue)
+                {
+                    SequenceTimer = sequenceSM.Current;
+
+                    if (SequenceTimer <= -0.5)
+                        hasValue = false;
+                }
+
+                if (!hasValue)
+                {
+                    if (AutoStart)
+                        SetSequenceSM(Sequence);
+                    else
+                        SetSequenceSM(null);
+                }
+            }
+
+            private void SetSequenceSM(IEnumerable<double> seq)
+            {
+                Running = false;
+                SequenceTimer = 0;
+
+                sequenceSM?.Dispose();
+                sequenceSM = null;
+
+                if (seq != null)
+                {
+                    Running = true;
+                    sequenceSM = seq.GetEnumerator();
+                }
+            }
+        }
+        internal sealed class Profiler
+        {
+            public double RunningAverageMs { get; private set; }
+            private double AverageRuntimeMs
+            {
+                get
+                {
+                    double sum = runtimeCollection[0];
+                    for (int i = 1; i < BufferSize; i++)
+                    {
+                        sum += runtimeCollection[i];
+                    }
+                    return (sum / BufferSize);
+                }
+            }
+            /// <summary>Use <see cref="MaxRuntimeMsFast">MaxRuntimeMsFast</see> if performance is a major concern</summary>
+            public double MaxRuntimeMs
+            {
+                get
+                {
+                    double max = runtimeCollection[0];
+                    for (int i = 1; i < BufferSize; i++)
+                    {
+                        if (runtimeCollection[i] > max)
+                        {
+                            max = runtimeCollection[i];
+                        }
+                    }
+                    return max;
+                }
+            }
+            public double MaxRuntimeMsFast { get; private set; }
+            public double MinRuntimeMs
+            {
+                get
+                {
+                    double min = runtimeCollection[0];
+                    for (int i = 1; i < BufferSize; i++)
+                    {
+                        if (runtimeCollection[i] < min)
+                        {
+                            min = runtimeCollection[i];
+                        }
+                    }
+                    return min;
+                }
+            }
+            public int BufferSize { get; }
+
+            private readonly double bufferSizeInv;
+            private readonly IMyGridProgramRuntimeInfo runtimeInfo;
+            private readonly double[] runtimeCollection;
+            private int counter = 0;
+
+            /// <summary></summary>
+            /// <param name="runtimeInfo">Program.Runtime instance of this script.</param>
+            /// <param name="bufferSize">Buffer size. Must be 1 or higher.</param>
+            public Profiler(IMyGridProgramRuntimeInfo runtimeInfo, int bufferSize = 300)
+            {
+                this.runtimeInfo = runtimeInfo;
+                this.MaxRuntimeMsFast = runtimeInfo.LastRunTimeMs;
+                this.BufferSize = MathHelper.Clamp(bufferSize, 1, int.MaxValue);
+                this.bufferSizeInv = 1.0 / BufferSize;
+                this.runtimeCollection = new double[bufferSize];
+                this.runtimeCollection[counter] = runtimeInfo.LastRunTimeMs;
+                this.counter++;
+            }
+            public void Run()
+            {
+                RunningAverageMs -= runtimeCollection[counter] * bufferSizeInv;
+                RunningAverageMs += runtimeInfo.LastRunTimeMs * bufferSizeInv;
+
+                runtimeCollection[counter] = runtimeInfo.LastRunTimeMs;
+
+                if (runtimeInfo.LastRunTimeMs > MaxRuntimeMsFast)
+                {
+                    MaxRuntimeMsFast = runtimeInfo.LastRunTimeMs;
+                }
+
+                counter++;
+
+                if (counter >= BufferSize)
+                {
+                    counter = 0;
+                    //Correct floating point drift
+                    RunningAverageMs = AverageRuntimeMs;
+                    MaxRuntimeMsFast = runtimeInfo.LastRunTimeMs;
+                }
+            }
+        }
 
     }
 }
