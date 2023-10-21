@@ -37,7 +37,7 @@ namespace IngameScript
     partial class Program : MyGridProgram
     {
 
-        const string version = "V: 1.2.0";
+        const string version = "V: 1.2.1";
         bool isStation;
         const int timeSpan = 1;
         readonly int yieldTime;
@@ -100,16 +100,18 @@ namespace IngameScript
 
         //init Timer State machine
         readonly SimpleTimerSM timerSM;
-        SlowTimerSM slowUnloadSM;
-        SlowTimerSM slowReloadSM;
+        readonly SlowTimerSM slowUnloadSM;
+        readonly SlowTimerSM slowReloadSM;
         //runtime
         readonly Profiler profiler;
         double averageRT = 0;
         double maxRT = 0;
-        readonly int[] multTickList = new int[] { 1, 2, 3 };
+        readonly int[] multTickList = new int[] { 1, 5, 10 };
         int multTicks = 1;
         int loadingMultiplier = 0; //
         float loadingPercentage = 0; // perc of cargo slow loaded
+        int loadingItemsMultiplier = 0;
+        float loadingItemsPercentage = 0;
         bool slowReloadBool = false;
         bool slowUnloadBool = false;
         bool profilerBool = true;
@@ -940,7 +942,7 @@ namespace IngameScript
         {
             while (true)
             {
-                string loadEcho = $"Starting loading\n{"0% ( ",-28}" + $"{" ) 100%",4}";
+                string loadEcho = $"Starting loading\n{"0% ( ",-28}" + $"{" ) 100%",4}\nItems:\n{"0% ( ",-28}" + $"{" ) 100%",4}";
                 TextWriting(LCDLog, LCDLogBool, loadEcho, false);
                 if (ShipConnectedToBase() && readCargoCustom)
                 {
@@ -952,45 +954,58 @@ namespace IngameScript
                         TextWriting(LCDLog, LCDLogBool, "", false);
                         int cargoCount = destinationContainers.Count;
                         //Echo($"We're loading up\nItems{itemDict.Count}");
+                        Dictionary<MyDefinitionId, int> containerItems = new Dictionary<MyDefinitionId, int>();
                         for (int i = 0; i < destinationContainers.Count; i++)
                         {
+                            int totItems = destinationContainers[i].GetInventory().ItemCount;
                             loadingPercentage = (float)Math.Ceiling((double)(i + 1) * 100 / cargoCount);
                             loadingMultiplier = (int)Math.Ceiling(loadingPercentage / 10);
-                            loadEcho = $"Loading Cargo {i + 1} of {cargoCount}.\n{"0% ( " + string.Concat(Enumerable.Repeat("=", loadingMultiplier * 2)),-28}" + $"{" ) 100%",4}";
+                            loadEcho = $"Loading Cargo {i + 1} of {cargoCount}.\n{"0% ( " + string.Concat(Enumerable.Repeat("=", loadingMultiplier * 2)),-28}" + $"{" ) 100%",4}\nItems: \n" +
+                                $"{"0% ( " + string.Concat(Enumerable.Repeat("=", 1)),-28}" + $"{" ) 100%",4}";
                             TextWriting(LCDLog, LCDLogBool, loadEcho, false);
                             yield return 36 * multTicks * tickToSeconds;
                             //Echo($"cargo: {destinationContainers[i].CustomName}");
                             IMyInventory destinationInventory = destinationContainers[i].GetInventory();
                             //Echo($"cargoInv: {destinationInventory}");
-
+                            
                             foreach (var sourceContainer in baseContainers)
                             {
+                                List<MyInventoryItem> ShipItemsList = ItemToList(destinationContainers[i]); //create a list of items in the destination container
+                                yield return 60 * multTicks * tickToSeconds;
                                 //Echo($"sourceInv: {sourceContainer.CustomName}");
                                 IMyInventory sourceInventory = sourceContainer.GetInventory();
                                 foreach (var container in itemDict.Keys)
                                 {
                                     //Echo($"container: {container}");
-                                    Dictionary<MyDefinitionId, int> containerItems = itemDict[container]; //item's name in custom data container
-                                    List<MyInventoryItem> ShipItemsList = ItemToList(destinationContainers[i]); //create a list of items in the destination container
+                                    containerItems = itemDict[container]; //item's name in custom data container
+                                    
                                     foreach (KeyValuePair<MyDefinitionId, int> itemEntry in containerItems)
                                     {
-
+                                        yield return 20 * multTicks * tickToSeconds;
                                         MyDefinitionId itemId = itemEntry.Key;
                                         int quantity = itemEntry.Value;
                                         int startingListCount = ShipItemsList.Count;
                                         MyInventoryItem? itemSource = sourceInventory.FindItem(itemId);
                                         if (itemSource != null && container == destinationContainers[i])
                                         {
+                                            totItems = container.GetInventory().ItemCount;
                                             if (ShipItemsList.Count == 0)
                                             {
                                                 yield return 9 * multTicks * tickToSeconds;
-                                                loadEcho = $"Loading Cargo {i + 1} of {cargoCount}..\n{"0% ( " + string.Concat(Enumerable.Repeat("=", loadingMultiplier * 2)),-28}" + $"{" ) 100%",4}";
+                                                loadingItemsPercentage = (float)Math.Ceiling((double)(totItems) * 100 / containerItems.Count);
+                                                loadingItemsMultiplier = (int)Math.Ceiling(loadingItemsPercentage / 10);
+                                                loadEcho = $"Loading Cargo {i + 1} of {cargoCount}..\n{"0% ( " + string.Concat(Enumerable.Repeat("=", loadingMultiplier * 2)),-28}" + $"{" ) 100%",4}\nItems: {totItems}\n" +
+                                                    $"{"0% ( " + string.Concat(Enumerable.Repeat("=", loadingItemsMultiplier * 2)),-28}" + $"{" ) 100%",4}";
                                                 TextWriting(LCDLog, LCDLogBool, loadEcho, false);
                                                 sourceInventory.TransferItemTo(destinationInventory, (MyInventoryItem)itemSource, quantity);
 
                                                 //Echo($"ItemLoaded: {itemId} = {quantity}");
                                             }
-                                            loadEcho = $"Loading Cargo {i + 1} of {cargoCount}...\n{"0% ( " + string.Concat(Enumerable.Repeat("=", loadingMultiplier * 2)),-28}" + $"{" ) 100%",4}";
+                                            totItems = container.GetInventory().ItemCount;
+                                            loadingItemsPercentage = (float)Math.Ceiling((double)(totItems) * 100 / containerItems.Count);
+                                            loadingItemsMultiplier = (int)Math.Ceiling(loadingItemsPercentage / 10);
+                                            loadEcho = $"Loading Cargo {i + 1} of {cargoCount}..\n{"0% ( " + string.Concat(Enumerable.Repeat("=", loadingMultiplier * 2)),-28}" + $"{" ) 100%",4}\nItems: {totItems}\n" +
+                                                    $"{"0% ( " + string.Concat(Enumerable.Repeat("=", loadingItemsMultiplier * 2)),-28}" + $"{" ) 100%",4}";
                                             TextWriting(LCDLog, LCDLogBool, loadEcho, false);
                                             //Echo("itemsource!=null");
                                             if (ShipItemsList.Count > 0)
@@ -998,10 +1013,15 @@ namespace IngameScript
                                                 //Echo("for loop");
                                                 for (int j = ShipItemsList.Count - 1; j >= 0; j--)
                                                 {
+                                                    yield return 18 * multTicks * tickToSeconds;
                                                     if (itemId == (MyDefinitionId)ShipItemsList[j].Type)
                                                     {
-                                                        yield return 9 * multTicks * tickToSeconds;
-                                                        loadEcho = $"Loading Cargo {i + 1} of {cargoCount}..\n{"0% ( " + string.Concat(Enumerable.Repeat("=", loadingMultiplier * 2)),-28}" + $"{" ) 100%",4}";
+                                                        
+                                                        totItems = container.GetInventory().ItemCount;
+                                                        loadingItemsPercentage = (float)Math.Ceiling((double)(totItems) * 100 / containerItems.Count);
+                                                        loadingItemsMultiplier = (int)Math.Ceiling(loadingItemsPercentage / 10);
+                                                        loadEcho = $"Loading Cargo {i + 1} of {cargoCount}..\n{"0% ( " + string.Concat(Enumerable.Repeat("=", loadingMultiplier * 2)),-28}" + $"{" ) 100%",4}\nItems: {totItems} \n" +
+                                                            $"{"0% ( " + string.Concat(Enumerable.Repeat("=", loadingItemsMultiplier * 2)),-28}" + $"{" ) 100%",4}";
                                                         TextWriting(LCDLog, LCDLogBool, loadEcho, false);
                                                         //Echo("loading");
                                                         MyFixedPoint itemCount = ShipItemsList[j].Amount;
@@ -1019,20 +1039,52 @@ namespace IngameScript
                                                         sourceInventory.TransferItemTo(destinationInventory, (MyInventoryItem)itemSource, quantity);
                                                         //Echo($"ItemLoaded: {itemId} = {quantity}");
                                                     }
-                                                    loadEcho = $"Loading Cargo {i + 1} of {cargoCount}.....\n{"0% ( " + string.Concat(Enumerable.Repeat("=", loadingMultiplier * 2)),-28}" + $"{" ) 100%",4}";
+                                                    totItems = container.GetInventory().ItemCount;
+                                                    loadingItemsPercentage = (float)Math.Ceiling((double)(totItems) * 100 / containerItems.Count);
+                                                    loadingItemsMultiplier = (int)Math.Ceiling(loadingItemsPercentage / 10);
+                                                    loadEcho = $"Loading Cargo {i + 1} of {cargoCount}..\n{"0% ( " + string.Concat(Enumerable.Repeat("=", loadingMultiplier * 2)),-28}" + $"{" ) 100%",4}\nItems: {totItems} \n" +
+                                                        $"{"0% ( " + string.Concat(Enumerable.Repeat("=", loadingItemsMultiplier * 2)),-28}" + $"{" ) 100%",4}";
                                                     TextWriting(LCDLog, LCDLogBool, loadEcho, false);
+                                                    if (totItems == containerItems.Count)
+                                                    {
+                                                        break;
+                                                    }
+                                                }
+                                                if (totItems == containerItems.Count)
+                                                {
+                                                    break;
                                                 }
                                             }
+                                            if (totItems == containerItems.Count)
+                                            {
+                                                break;
+                                            }
+                                        }
+                                        if (totItems == containerItems.Count)
+                                        {
+                                            break;
                                         }
                                         else
                                         {
                                             continue;
                                         }
                                     }
+                                    if (totItems == containerItems.Count)
+                                    {
+                                        break;
+                                    }
+                                }
+                                if (totItems == containerItems.Count)
+                                {
+                                    //Echo($"totitems: {totItems}\ndict count: {containerItems.Count}");
+                                    break;
                                 }
                             }
-                            loadEcho = $"Loading Cargo {i} of {cargoCount}...\n{"0% ( " + string.Concat(Enumerable.Repeat("=", loadingMultiplier * 2)),-28}" + $"{" ) 100%",4}";
-                            TextWriting(LCDLog, LCDLogBool, loadEcho, false);
+                            if (totItems == containerItems.Count)
+                            {
+                                //Echo($"totitems: {totItems}\ndict count: {containerItems.Count}");
+                                continue;
+                            }
 
                         }
                         Echo("Reload COMPLETED!\n");
@@ -1049,7 +1101,7 @@ namespace IngameScript
                                     //Echo("missing items dict creation");
                                     Dictionary<MyDefinitionId, MyFixedPoint> nestedDictionary = new Dictionary<MyDefinitionId, MyFixedPoint>();
                                     //Echo("custom data dict per container");
-                                    Dictionary<MyDefinitionId, int> containerItems = itemDict[dictContainer]; //item's name in custom data container
+                                    containerItems = itemDict[dictContainer]; //item's name in custom data container
                                     //Echo("list creation");
                                     List<MyInventoryItem> missingItemsList = ItemToList(container);
                                     //Echo("finish");
