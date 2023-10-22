@@ -37,7 +37,7 @@ namespace IngameScript
     partial class Program : MyGridProgram
     {
 
-        const string version = "V: 1.2.1";
+        const string version = "V: 1.2.2";
         bool isStation;
         const int timeSpan = 1;
         readonly int yieldTime;
@@ -228,7 +228,7 @@ namespace IngameScript
 
                     case "read&write":
                         timerSM.Stop();
-                        TextWriting(LCDLog, LCDLogBool, "Reading tagged Cargos' CD\n", false);
+                        //TextWriting(LCDLog, LCDLogBool, "Reading tagged Cargos' CD\n", false);
                         ReadAndWrite();
                         break;
 
@@ -751,28 +751,37 @@ namespace IngameScript
             {
                 foreach (var c in taggedCargos)
                 {
-                    c.CustomData += _ini.DeleteSection("WrittenItems");
+                    //c.CustomData += _ini.DeleteSection("WrittenItems");
                     List<MyInventoryItem> items = new List<MyInventoryItem>();
                     c.GetInventory().GetItems(items);
-                    foreach (var i in items)
+                    if (items!=null && items.Count>0)
                     {
-                        CustomDataCargo(c);
-                        //_ini.DeleteSection("Cargo");
-                        string itemName = i.Type.ToString().Replace("MyObjectBuilder_", "");
-                        MyFixedPoint itemAmount = i.Amount;
-                        //Echo($"1: {itemName}\n2:{itemAmount}");
-                        TextWriting(LCDLog, LCDLogBool, itemName, false);
-                        _ini.Set("WrittenItems", itemName, itemAmount.ToString());
-                        c.CustomData = _ini.ToString();
+                        foreach (var i in items)
+                        {
+                            //CustomDataCargo(c);
+                            //_ini.DeleteSection("Cargo");
+                            string itemName = i.Type.ToString().Replace("MyObjectBuilder_", "");
+                            MyFixedPoint itemAmount = i.Amount;
+                            //Echo($"1: {itemName}\n2:{itemAmount}");
+                            TextWriting(LCDLog, LCDLogBool, itemName, false);
+                            _ini.Set("Cargo", itemName, itemAmount.ToString());
+                            if(!_ini.ContainsSection("Change this value to multiply all comps"))
+                            {
+                                _ini.Set("Change this value to multiply all comps", "Multiplier", 1);
+                            }
+                            c.CustomData = _ini.ToString();
+                        } 
                     }
+                    if(items==null || items.Count == 0) { TextWriting(LCDLog, LCDLogBool, "No itemes in cargo!", false); return; }
                     if (_ini.TryParse(c.CustomData))
                     {
                         TextWriting(LCDLog, LCDLogBool, "CD Created", false);
+                        return;
                     }
                     else { TextWriting(LCDLog, LCDLogBool, "Error during the Parse", false); }
                 }
             }
-            else { TextWriting(LCDLog, LCDLogBool, "Cargo is empty!", false); }
+            else { TextWriting(LCDLog, LCDLogBool, "No Cargo detecting!", false); return; }
         }
         public void ToggleOn()
         {
