@@ -37,7 +37,7 @@ namespace IngameScript
     partial class Program : MyGridProgram
     {
 
-        const string version = "V: 1.2.3";
+        const string version = "V: 1.2.5";
         bool isStation;
         const int timeSpan = 1;
         readonly int yieldTime;
@@ -86,7 +86,7 @@ namespace IngameScript
         IMyTextPanel LCDInv;
         bool LCDLogBool;
         bool LCDInvBool;
-        const string defaultHUDLCD = "hudlcd:-.7:.99:0.62";
+        const string defaultHUDLCD = "hudlcd:-.55:-0.59:0.55";
         const string defaultHUDLCDInv = "hudlcd:-.5:.99:0.62";
         Color lcd_font_colour = new Color(30, 144, 255, 255);
 
@@ -100,7 +100,7 @@ namespace IngameScript
         readonly MyDefinitionId OreId = MyDefinitionId.Parse("Ore/");
 
         //init Timer State machine
-        readonly SimpleTimerSM timerSM;
+        SimpleTimerSM timerSM;
         readonly SlowTimerSM slowUnloadSM;
         readonly SlowTimerSM slowReloadSM;
         //runtime
@@ -209,8 +209,17 @@ namespace IngameScript
                 switch (argument.ToLower())
                 {
                     case "start":
-                        timerSM.Start();
-                        Runtime.UpdateFrequency = UpdateFrequency.Update100;
+                        if (setupCompleted)
+                        {
+                            timerSM = new SimpleTimerSM(this, Sequence());
+                            timerSM.Start();
+                            Runtime.UpdateFrequency = UpdateFrequency.Update100;
+                        }
+                        else
+                        {
+                            Echo("Setup not completed!");
+                            TextWriting(LCDLog, LCDLogBool, "Setup not completed!", false);
+                        }
                         break;
 
                     case "stop":
@@ -241,7 +250,7 @@ namespace IngameScript
                         if (ShipConnectedToBase() && readCargoCustom)
                         {
                             baseContainers = GetCargoContainerBase(BaseContainersCustom);
-                            if (baseContainers != null)
+                            if (baseContainers != null && baseContainers.Count > 0)
                             {
                                 try
                                 {
@@ -259,8 +268,8 @@ namespace IngameScript
 
                             else
                             {
-                                Echo("No Base Containers:\nChange the Base's Cargos Group Name as BaseCargo\nOr check docking status");
-                                TextWriting(LCDLog, LCDLogBool, "No Base Containers:\nChange the Base's Cargos Group Name\n as BaseCargo\nOr check docking status", false);
+                                Echo("No Base Containers:\nChange the Base's Cargos Group Name as BaseCargo");
+                                TextWriting(LCDLog, LCDLogBool, "No Base Containers:\nChange the Base's Cargos Group Name\n as BaseCargo", false);
                             }
                         }
                         else if (!ShipConnectedToBase())
@@ -278,7 +287,7 @@ namespace IngameScript
                         if (ShipConnectedToBase() && readCargoCustom)
                         {
                             baseContainers = GetCargoContainerBase(BaseContainersCustom);
-                            if (baseContainers != null)
+                            if (baseContainers != null && baseContainers.Count>0)
                             {
                                 try
                                 {
@@ -392,7 +401,7 @@ namespace IngameScript
             }
             //cargo set up
             SetUpCargo(shipContainers, ShipContainersCustom);
-            if (!setupCompleted) { return; }
+            if (!setupCompleted && readCargoCustom) { return; }
 
 
             //all reactors
@@ -417,6 +426,7 @@ namespace IngameScript
             const int defaultMultiplier = 1;
             int customMultiplier;
             bool cargoWasparsed = _ini.TryParse(container.CustomData);
+
             if (!cargoWasparsed)
             {
                 _ini.Clear();
@@ -424,8 +434,9 @@ namespace IngameScript
                 timerSM.Stop();
                 slowReloadSM.Stop();
                 slowUnloadSM.Stop();
-                _ini.Set("Cargo", "Write items here", "put quantity here");
-                _ini.Set("Change this value to multiply all comps", "Multiplier", defaultMultiplier);
+                _ini.AddSection("Cargo");
+                _ini.Set("MultiplierValue", "Multiplier", defaultMultiplier);
+                _ini.SetComment("MultiplierValue", "Multiplier", "Change this value to multiply all comps");
                 container.CustomData += _ini.ToString();
                 setupCompleted = false;
                 //container.CustomData += _ini.ToString();
@@ -436,8 +447,9 @@ namespace IngameScript
             if (cargoWasparsed)
             {
                 setupCompleted = true;
-                customMultiplier = _ini.Get("Change this value to multiply all comps", "Multiplier").ToInt32(defaultMultiplier);
-                _ini.Set("Change this value to multiply all comps", "Multiplier", customMultiplier);
+                customMultiplier = _ini.Get("MultiplierValue", "Multiplier").ToInt32(defaultMultiplier);
+                _ini.Set("MultiplierValue", "Multiplier", customMultiplier);
+                _ini.SetComment("MultiplierValue", "Multiplier", "Change this value to multiply all comps");
                 container.CustomData = _ini.ToString();
             }
         }
@@ -687,8 +699,19 @@ namespace IngameScript
         {
             List<IMyCargoContainer> baseContainers = new List<IMyCargoContainer>();
             IMyBlockGroup BaseGroupContiners = GridTerminalSystem.GetBlockGroupWithName(BaseContainersCustom);
-            BaseGroupContiners.GetBlocksOfType(baseContainers);
-            return baseContainers;
+            if(BaseGroupContiners != null)
+            {
+                BaseGroupContiners.GetBlocksOfType(baseContainers);
+                if(baseContainers!=null && baseContainers.Count>0)
+                {
+                    return baseContainers;
+                }
+            }
+            else
+            {
+                return null;
+            }
+            return null;
         }
 
         public void Parsing(List<IMyCargoContainer> shipContainers, Dictionary<IMyCargoContainer, Dictionary<MyDefinitionId, int>> itemDict)
@@ -710,7 +733,7 @@ namespace IngameScript
                 else
                 {
                     int customMultiplier;
-                    customMultiplier = _ini.Get("Change this value to multiply all comps", "Multiplier").ToInt32();
+                    customMultiplier = _ini.Get("MultiplierValue", "Multiplier").ToInt32();
                     //Echo($"{customMultiplier}");
                     List<MyIniKey> keyList = new List<MyIniKey>();
                     _ini.GetKeys(keyList);
@@ -773,9 +796,9 @@ namespace IngameScript
                             //Echo($"1: {itemName}\n2:{itemAmount}");
                             TextWriting(LCDLog, LCDLogBool, itemName, false);
                             _ini.Set("Cargo", itemName, itemAmount.ToString());
-                            if(!_ini.ContainsSection("Change this value to multiply all comps"))
+                            if(!_ini.ContainsSection("MultiplierValue"))
                             {
-                                _ini.Set("Change this value to multiply all comps", "Multiplier", 1);
+                                _ini.Set("MultiplierValue", "Multiplier", 1);
                             }
                             c.CustomData = _ini.ToString();
                         } 
@@ -893,7 +916,7 @@ namespace IngameScript
                 if (ShipConnectedToBase() && readCargoCustom)
                 {
                     baseContainers = GetCargoContainerBase(BaseContainersCustom);
-                    if (baseContainers != null)
+                    if (baseContainers != null && baseContainers.Count>0)
                     {
                         //Echo("Ship Connected \nBase Cargo found");
                         foreach (IMyCargoContainer destinationContainer in baseContainers)
@@ -941,8 +964,9 @@ namespace IngameScript
                     }
                     else
                     {
-                        Echo("No Base Containers:\nChange the Base's Cargos Group Name as BaseCargo\nOr check docking status");
-                        TextWriting(LCDLog, LCDLogBool, $"No Base Containers:\nChange the Base's Cargos Group Name\n as BaseCargo\nOr check docking status", false);
+                        Echo("No Base Containers:\nChange the Base's Cargos Group Name as BaseCargo.");
+                        TextWriting(LCDLog, LCDLogBool, $"No Base Containers:\nChange the Base's Cargos Group Name\n as BaseCargo.", false);
+                        slowUnloadBool=false;
                         yield break;
                     }
                 }
@@ -950,6 +974,7 @@ namespace IngameScript
                 {
                     Echo("Ship is not Connected to Station");
                     TextWriting(LCDLog, LCDLogBool, $"Ship is not Connected to Station", false);
+                    slowUnloadBool = false;
                     yield break;
                 }
             }
@@ -978,7 +1003,7 @@ namespace IngameScript
                         Dictionary<MyDefinitionId, int> containerItems = new Dictionary<MyDefinitionId, int>();
                         for (int i = 0; i < destinationContainers.Count; i++)
                         {
-                            yield return 4 * multTicks * multTicks;
+                            yield return 2 * multTicks * multTicks;
                             int totItems = destinationContainers[i].GetInventory().ItemCount;
                             time += Runtime.TimeSinceLastRun.TotalSeconds;
                             loadingPercentage = (float)Math.Ceiling((double)(i + 1) * 100 / cargoCount);
@@ -1003,7 +1028,7 @@ namespace IngameScript
                                     MyDefinitionId itemId = itemEntry.Key;
                                     int quantity = itemEntry.Value;
                                     //Echo($"container: {container}");
-                                    yield return 6 * multTicks * tickToSeconds;
+                                    yield return 2 * multTicks * tickToSeconds;
                                     //item's name in custom data container
 
                                     foreach (var sourceContainer in baseContainers)
@@ -1101,47 +1126,52 @@ namespace IngameScript
                         }
                         Echo("Reload COMPLETED!\n");
                         TextWriting(LCDLog, LCDLogBool, $"Reload Completed!", false);
-
+                        yield return 1 * multTicks * tickToSeconds;
                         foreach (var container in destinationContainers)
                         {
-                            int customMultiplier;
-                            customMultiplier = _ini.Get("Change this value to multiply all comps below", "Multiplier").ToInt32();
+                            //int customMultiplier;
+                            //customMultiplier = _ini.Get("Change this value to multiply all comps below", "Multiplier").ToInt32();
                             foreach (var dictContainer in itemDict.Keys)
                             {
                                 if (container == dictContainer)
                                 {
+                                    yield return 1 * multTicks * tickToSeconds;
                                     //Echo("missing items dict creation");
                                     Dictionary<MyDefinitionId, MyFixedPoint> nestedDictionary = new Dictionary<MyDefinitionId, MyFixedPoint>();
                                     //Echo("custom data dict per container");
-                                    containerItems = itemDict[dictContainer]; //item's name in custom data container
+                                    Dictionary<MyDefinitionId, int>  containerItemsNew = itemDict[dictContainer]; //item's name in custom data container
                                     //Echo("list creation");
                                     List<MyInventoryItem> missingItemsList = ItemToList(container);
-                                    //Echo("finish");
-                                    foreach (KeyValuePair<MyDefinitionId, int> itemEntry in containerItems)
+                                    //Echo($"missingItemsList: {missingItemsList.Count}");
+                                    foreach (KeyValuePair<MyDefinitionId, int> itemEntry in containerItemsNew)
                                     {
                                         int startingListCount = missingItemsList.Count;
-                                        //Echo($"{startingListCount}");
+                                        //Echo($"Starting  list: {startingListCount}");
                                         MyDefinitionId itemId = itemEntry.Key;
-                                        MyFixedPoint quantity = itemEntry.Value * customMultiplier;
-
+                                        MyFixedPoint quantity = itemEntry.Value;
+                                        //Echo($"Missing Items: Cargo:{container}; itemId: {itemId}-->quantity: {quantity}");
                                         if (missingItemsList.Count == 0)
                                         {
                                             //Echo($"Missing Items: Cargo:{container}; {nestedDictionary.Keys}={nestedDictionary.Values}");
-                                            nestedDictionary[itemId] += nestedDictionary.GetValueOrDefault(itemId, 0) + quantity;
+                                            nestedDictionary[itemId] = nestedDictionary.GetValueOrDefault(itemId, 0) + quantity;
                                         }
                                         if (missingItemsList.Count > 0)
                                         {
-                                            for (int i = missingItemsList.Count - 1; i > 0; i--)
+                                            //Echo("1");
+                                            for (int i = missingItemsList.Count - 1; i >= 0; i--)
                                             {
-
+                                                //Echo($"i: {i}");
                                                 if (itemId == (MyDefinitionId)missingItemsList[i].Type)
                                                 {
                                                     MyFixedPoint itemCount = missingItemsList[i].Amount;
                                                     MyFixedPoint missingQuantity = MyFixedPoint.Max(quantity - itemCount, 0);
+                                                    //Echo($"quantity: {quantity}\nitemCount: {itemCount}\nmissingQuantiy: {missingQuantity}");
 
                                                     if (missingQuantity != 0)
                                                     {
-                                                        nestedDictionary[itemId] += nestedDictionary.GetValueOrDefault(itemId, 0) + missingQuantity;
+                                                        //Echo("2");
+                                                        nestedDictionary[itemId] = nestedDictionary.GetValueOrDefault(itemId, 0) + missingQuantity;
+                                                        //Echo($"asd: {nestedDictionary[itemId]}");
                                                     }
                                                     missingItemsList.RemoveAt(i);
                                                 }
@@ -1149,8 +1179,9 @@ namespace IngameScript
                                                 //Echo($"finalListCount= {finalListCount}");
                                                 if (finalListCount == startingListCount && i == 0)
                                                 {
-                                                    Echo($"itemDict: {itemEntry}; dictamount{quantity}; listQuant {missingItemsList[i].Amount};missquant {MyFixedPoint.Max(quantity - missingItemsList[i].Amount, 0)}; itemlist{missingItemsList[i].Type}");
-                                                    nestedDictionary[itemId] += nestedDictionary.GetValueOrDefault(itemId, 0) + MyFixedPoint.Max(quantity, 0);
+                                                    //Echo($"itemDict: {itemEntry}; dictamount{quantity}; listQuant {missingItemsList[i].Amount};missquant {MyFixedPoint.Max(quantity - missingItemsList[i].Amount, 0)}; itemlist{missingItemsList[i].Type}");
+                                                    nestedDictionary[itemId] = nestedDictionary.GetValueOrDefault(itemId, 0) + MyFixedPoint.Max(quantity, 0);
+                                                    //Echo($"asd: {nestedDictionary[itemId]}");
                                                 }
                                             }
                                         }
@@ -1186,9 +1217,10 @@ namespace IngameScript
                                     else { missingCargo.Append($""); }
                                     //Echo($"{nestedDictionary.Count}");
                                 }
+                                else continue;
                             }
                         }
-                        //Echo(missingCargo.ToString());
+                        Echo(missingCargo.ToString());
                         TextWriting(LCDLog, LCDLogBool, $"Reload Completed!\n{missingCargo}", false);
                         missingItems.Clear();
                         missingCargo.Clear();
@@ -1199,8 +1231,9 @@ namespace IngameScript
 
                     else
                     {
-                        Echo("No Base Containers:\nChange the Base's Cargos Group Name as BaseCargo\nOr check docking status");
-                        TextWriting(LCDLog, LCDLogBool, "No Base Containers:\nChange the Base's Cargos Group Name\n as BaseCargo\nOr check docking status", false);
+                        Echo("No Base Containers:\nChange the Base's Cargos Group Name as BaseCargo");
+                        TextWriting(LCDLog, LCDLogBool, "No Base Containers:\nChange the Base's Cargos Group Name\n as BaseCargo", false);
+                        slowReloadBool=false;
                         yield break;
                     }
                 }
@@ -1208,6 +1241,7 @@ namespace IngameScript
                 {
                     Echo("Ship is not Connected to Station");
                     TextWriting(LCDLog, LCDLogBool, $"Ship is not Connected to Station", false);
+                    slowReloadBool=false;
                     yield break;
                 }
             }
@@ -1541,7 +1575,7 @@ namespace IngameScript
             if (lcdBool)
             {
                 string header = $"{lcd_divider}\n{lcd_title}\n           {version}\n" +
-                    $"{lcd_divider}\nCOMMANDS:\nstart, stop, fast_unload, \nfast_reload, slow_upload, slow_reload,\nrefresh, read&write, toggle\n{lcd_divider}\n";
+                    $"{lcd_divider}\nCOMMANDS:\nstart, stop, fast_unload, \nfast_reload, slow_upload, \nslow_reload, refresh, \nread&write, toggle\n{lcd_divider}\n";
                 LCD.WriteText(header + input, append);
             }
         }
