@@ -434,9 +434,9 @@ namespace IngameScript
                 timerSM.Stop();
                 slowReloadSM.Stop();
                 slowUnloadSM.Stop();
-                _ini.AddSection("Cargo");
-                _ini.Set("MultiplierValue", "Multiplier", defaultMultiplier);
-                _ini.SetComment("MultiplierValue", "Multiplier", "Change this value to multiply all comps");
+                _ini.AddSection("Cargo-RIH");
+                _ini.Set("MultiplierValue-RIH", "Multiplier", defaultMultiplier);
+                _ini.SetComment("MultiplierValue-RIH", "Multiplier", "Change this value to multiply all comps");
                 container.CustomData += _ini.ToString();
                 setupCompleted = false;
                 //container.CustomData += _ini.ToString();
@@ -446,12 +446,14 @@ namespace IngameScript
             }
             if (cargoWasparsed)
             {
+                if (!_ini.ContainsSection("Cargo-RIH")) _ini.AddSection("Cargo-RIH");
                 setupCompleted = true;
-                customMultiplier = _ini.Get("MultiplierValue", "Multiplier").ToInt32(defaultMultiplier);
-                _ini.Set("MultiplierValue", "Multiplier", customMultiplier);
-                _ini.SetComment("MultiplierValue", "Multiplier", "Change this value to multiply all comps");
+                customMultiplier = _ini.Get("MultiplierValue-RIH", "Multiplier").ToInt32(defaultMultiplier);
+                _ini.Set("MultiplierValue-RIH", "Multiplier", customMultiplier);
+                _ini.SetComment("MultiplierValue-RIH", "Multiplier", "Change this value to multiply all comps");
                 container.CustomData = _ini.ToString();
             }
+            
         }
 
         public bool ShipConnectedToBase()
@@ -595,7 +597,7 @@ namespace IngameScript
 
                             if (missingItemsList.Count == 0)
                             {
-                                nestedDictionary.Add(itemId, quantity);
+                                nestedDictionary[itemId] = nestedDictionary.GetValueOrDefault(itemId, 0) + quantity;
                                 //Echo($"Missing Items: Cargo:{container}; {nestedDictionary.Keys}={nestedDictionary.Values}");
                             }
 
@@ -612,14 +614,14 @@ namespace IngameScript
                                         MyFixedPoint missingQuantity = MyFixedPoint.Max(quantity - itemCount, 0);
                                         if (missingQuantity != 0)
                                         {
-                                            nestedDictionary.Add(itemId, missingQuantity);
+                                            nestedDictionary[itemId] = nestedDictionary.GetValueOrDefault(itemId, 0) + missingQuantity;
                                         }
                                         missingItemsList.RemoveAt(i);
                                     }
                                     int finalListCount = missingItemsList.Count;
                                     if (finalListCount == startingListCount && i == 0)
                                     {
-                                        nestedDictionary.Add(itemId, MyFixedPoint.Max(quantity, 0));
+                                        nestedDictionary[itemId] = nestedDictionary.GetValueOrDefault(itemId, 0) + MyFixedPoint.Max(quantity, 0);
                                         //Echo($"itemDict: {itemEntry}; dictamount{quantity}; listQuant {itemCount};missquant {missingQuantity}; itemlist{missingItemsList[i].Type}");
                                     }
                                 }
@@ -733,7 +735,7 @@ namespace IngameScript
                 else
                 {
                     int customMultiplier;
-                    customMultiplier = _ini.Get("MultiplierValue", "Multiplier").ToInt32();
+                    customMultiplier = _ini.Get("MultiplierValue-RIH", "Multiplier").ToInt32();
                     //Echo($"{customMultiplier}");
                     List<MyIniKey> keyList = new List<MyIniKey>();
                     _ini.GetKeys(keyList);
@@ -795,10 +797,10 @@ namespace IngameScript
                             MyFixedPoint itemAmount = i.Amount;
                             //Echo($"1: {itemName}\n2:{itemAmount}");
                             TextWriting(LCDLog, LCDLogBool, itemName, false);
-                            _ini.Set("Cargo", itemName, itemAmount.ToString());
-                            if(!_ini.ContainsSection("MultiplierValue"))
+                            _ini.Set("Cargo-RIH", itemName, itemAmount.ToString());
+                            if(!_ini.ContainsSection("MultiplierValue-RIH"))
                             {
-                                _ini.Set("MultiplierValue", "Multiplier", 1);
+                                _ini.Set("MultiplierValue-RIH", "Multiplier", 1);
                             }
                             c.CustomData = _ini.ToString();
                         } 
