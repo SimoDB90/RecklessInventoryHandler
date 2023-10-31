@@ -94,6 +94,8 @@ namespace IngameScript
         const string lcd_divider = "------------------------------";
         const string lcd_title = "  RECKLESS INVENTORY HANDLER  ";
         const string lcd_inv_title = "       RIH INVENTORY LCD      ";
+        readonly string[] lcd_spinners = new string[] { "-", "\\", "|", "/" };
+        double lcd_spinner_status;
         readonly Dictionary<IMyCargoContainer, Dictionary<MyDefinitionId, int>> itemDict = new Dictionary<IMyCargoContainer, Dictionary<MyDefinitionId, int>>();
         readonly MyItemType fuelCanister = new MyItemType("MyObjectBuilder_Ingot", "FusionFuel");
         //ores
@@ -1620,7 +1622,10 @@ namespace IngameScript
         {
             if (lcdBool)
             {
-                string header = $"{lcd_divider}\n{lcd_title}\n           {version}\n" +
+                lcd_spinner_status += Runtime.TimeSinceLastRun.TotalSeconds;
+                if (lcd_spinner_status > lcd_spinners.Length) { lcd_spinner_status = 0; }
+                string spinner = lcd_spinners[(int)lcd_spinner_status];
+                string header = $"{lcd_divider}\n{spinner}{lcd_title}{spinner}\n           {version}\n" +
                     $"{lcd_divider}\n";
                 LCD.WriteText(header + input, append);
             }
