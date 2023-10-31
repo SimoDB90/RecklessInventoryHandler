@@ -3,8 +3,8 @@
 SCRIPT: RECKLESS INVENTORY HANDLER;
 TAG: RIH;
 OWNER: Reckless;
-Version: 1.2.5;
-Last Update: 30/10/2023;
+Version: 1.2.6;
+Last Update: 31/10/2023;
 DOWNLOAD AND READ THE GUIDE = https://steamcommunity.com/sharedfiles/filedetails/?id=3045706587
 
 CUSTOMIZE:
@@ -24,3 +24,4 @@ Script's command: start, refresh, cancel, reload, unload, toggle and read&write;
 7)"refresh": reads the custom data of cargos (like you would recompile the script);
 8) "toggle": turn on all blocks except for Epstein Drivers and tools;
 9)"read&write": read the items cargos tagge with "[RIH]" and write the items into the CD;
+10)"copy&paste": copy the CD of a cargo tagged with "[RIH].COPY" to any amount of cargos' CD, tagged with "[RIH].PASTE";
