@@ -798,8 +798,9 @@ namespace IngameScript
                 cargoCopy = cargoCopyList[0];
                 if(cargoPasteList!=null && cargoPasteList.Count>0)
                 {
-                    foreach(var c in cargoPasteList)
+                    foreach (var c in cargoPasteList)
                     {
+                        c.CustomData = "";
                         c.CustomData += cargoCopy.CustomData;
                     }
                     TextWriting(LCDLog, LCDLogBool, $"Custom data copied to {cargoPasteList.Count} Cargos!", false);
