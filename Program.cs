@@ -1,4 +1,4 @@
-﻿using EmptyKeys.UserInterface.Generated.DataTemplatesContractsDataGrid_Bindings;
+using EmptyKeys.UserInterface.Generated.DataTemplatesContractsDataGrid_Bindings;
 using Sandbox.Game.Entities;
 using Sandbox.Game.EntityComponents;
 using Sandbox.Game.Lights;
@@ -37,7 +37,7 @@ namespace IngameScript
     partial class Program : MyGridProgram
     {
 
-        const string version = "V: 1.2.5";
+        const string version = "V: 1.2.6";
         bool isStation;
         const int timeSpan = 1;
         readonly int yieldTime;
@@ -138,6 +138,7 @@ namespace IngameScript
                     $"fast_reload: load the cargo with their custom data\n" +
                     $"fast_unload: unload all comps\nrefresh: re-read cargos' CD\n" +
                     $"read&write: read tagged items and write in the CD\n" +
+                    $"copy&past: read the CD of 1 cargo and copy to selected cargo\n" +
                     $"toggle: toggle all blcoks but Epsteins, tools, proj]");
 
 
@@ -287,7 +288,7 @@ namespace IngameScript
                         if (ShipConnectedToBase() && readCargoCustom)
                         {
                             baseContainers = GetCargoContainerBase(BaseContainersCustom);
-                            if (baseContainers != null && baseContainers.Count>0)
+                            if (baseContainers != null && baseContainers.Count > 0)
                             {
                                 try
                                 {
@@ -336,6 +337,14 @@ namespace IngameScript
                         ToggleOn();
                         Echo("Toggling On everything except for Epsteins and tools");
                         TextWriting(LCDLog, LCDLogBool, $"Toggling On everything except for Epsteins\nand tools", false);
+                        break;
+
+                    case "copy&paste":
+                        Runtime.UpdateFrequency |= UpdateFrequency.None;
+                        timerSM.Stop();
+                        slowReloadSM.Stop();
+                        slowUnloadSM.Stop();
+                        CopyAndPaste();
                         break;
 
                     default:
@@ -453,7 +462,7 @@ namespace IngameScript
                 _ini.SetComment("MultiplierValue-RIH", "Multiplier", "Change this value to multiply all comps");
                 container.CustomData = _ini.ToString();
             }
-            
+
         }
 
         public bool ShipConnectedToBase()
@@ -701,10 +710,10 @@ namespace IngameScript
         {
             List<IMyCargoContainer> baseContainers = new List<IMyCargoContainer>();
             IMyBlockGroup BaseGroupContiners = GridTerminalSystem.GetBlockGroupWithName(BaseContainersCustom);
-            if(BaseGroupContiners != null)
+            if (BaseGroupContiners != null)
             {
                 BaseGroupContiners.GetBlocksOfType(baseContainers);
-                if(baseContainers!=null && baseContainers.Count>0)
+                if (baseContainers != null && baseContainers.Count > 0)
                 {
                     return baseContainers;
                 }
@@ -775,6 +784,41 @@ namespace IngameScript
             //    }
             //}
         }
+        public void CopyAndPaste()
+        {
+            List<IMyCargoContainer> cargoCopyList = new List<IMyCargoContainer>();
+            List<IMyCargoContainer> cargoPasteList = new List<IMyCargoContainer> ();
+            IMyCargoContainer cargoCopy;
+            GridTerminalSystem.GetBlocksOfType(cargoCopyList, x => x.CustomName.Contains(TagCustom + ".COPY"));
+            GridTerminalSystem.GetBlocksOfType(cargoPasteList, x => x.CustomName.Contains(TagCustom + ".PASTE"));
+            if(cargoCopyList!=null && cargoCopyList.Count == 1)
+            {
+                cargoCopy = cargoCopyList[0];
+                if(cargoPasteList!=null && cargoPasteList.Count>0)
+                {
+                    foreach(var c in cargoPasteList)
+                    {
+                        c.CustomData += cargoCopy.CustomData;
+                    }
+                    TextWriting(LCDLog, LCDLogBool, $"Custom data copied to {cargoPasteList.Count} Cargos!", false);
+                }
+                else
+                {
+                    TextWriting(LCDLog, LCDLogBool, "Cargo where to paste not found!", false);
+                    return;
+                }
+            }
+            else if(cargoCopyList==null)
+            {
+                TextWriting(LCDLog, LCDLogBool, "Cargo to be copied not found!", false);
+                return;
+            }
+            else if (cargoCopyList.Count>1)
+            {
+                TextWriting(LCDLog, LCDLogBool, $"Only one cargo can be copied!\n{cargoCopyList.Count} cargos detected!", false);
+                return;
+            }
+        }
         public void ReadAndWrite()
         {
             List<IMyCargoContainer> taggedCargos = new List<IMyCargoContainer>();
@@ -787,7 +831,7 @@ namespace IngameScript
                     //c.CustomData += _ini.DeleteSection("WrittenItems");
                     List<MyInventoryItem> items = new List<MyInventoryItem>();
                     c.GetInventory().GetItems(items);
-                    if (items!=null && items.Count>0)
+                    if (items != null && items.Count > 0)
                     {
                         foreach (var i in items)
                         {
@@ -798,14 +842,14 @@ namespace IngameScript
                             //Echo($"1: {itemName}\n2:{itemAmount}");
                             TextWriting(LCDLog, LCDLogBool, itemName, false);
                             _ini.Set("Cargo-RIH", itemName, itemAmount.ToString());
-                            if(!_ini.ContainsSection("MultiplierValue-RIH"))
+                            if (!_ini.ContainsSection("MultiplierValue-RIH"))
                             {
                                 _ini.Set("MultiplierValue-RIH", "Multiplier", 1);
                             }
                             c.CustomData = _ini.ToString();
-                        } 
+                        }
                     }
-                    if(items==null || items.Count == 0) { TextWriting(LCDLog, LCDLogBool, "No itemes in cargo!", false); return; }
+                    if (items == null || items.Count == 0) { TextWriting(LCDLog, LCDLogBool, "No itemes in cargo!", false); return; }
                     if (_ini.TryParse(c.CustomData))
                     {
                         TextWriting(LCDLog, LCDLogBool, "CD Created", false);
@@ -918,7 +962,7 @@ namespace IngameScript
                 if (ShipConnectedToBase() && readCargoCustom)
                 {
                     baseContainers = GetCargoContainerBase(BaseContainersCustom);
-                    if (baseContainers != null && baseContainers.Count>0)
+                    if (baseContainers != null && baseContainers.Count > 0)
                     {
                         //Echo("Ship Connected \nBase Cargo found");
                         foreach (IMyCargoContainer destinationContainer in baseContainers)
@@ -968,7 +1012,7 @@ namespace IngameScript
                     {
                         Echo("No Base Containers:\nChange the Base's Cargos Group Name as BaseCargo.");
                         TextWriting(LCDLog, LCDLogBool, $"No Base Containers:\nChange the Base's Cargos Group Name\n as BaseCargo.", false);
-                        slowUnloadBool=false;
+                        slowUnloadBool = false;
                         yield break;
                     }
                 }
@@ -989,14 +1033,14 @@ namespace IngameScript
                 bool allMoved = false;
                 bool allItems = false;
                 double time = Runtime.TimeSinceLastRun.TotalSeconds;
-                string loadEcho = $"Loading Time: {Math.Round(time,0)}\nStarting loading\n{"0% ( ",-28}" + $"{" ) 100%",4}\nItems:\n{"0% (   ",-28}" + $"{" ) 100%",4}";
+                string loadEcho = $"Loading Time: {Math.Round(time, 0)}\nStarting loading\n{"0% ( ",-28}" + $"{" ) 100%",4}\nItems:\n{"0% (   ",-28}" + $"{" ) 100%",4}";
                 TextWriting(LCDLog, LCDLogBool, loadEcho, false);
-                yield return 4 * multTicks*multTicks;
+                yield return 4 * multTicks * multTicks;
                 if (ShipConnectedToBase() && readCargoCustom)
                 {
                     baseContainers = GetCargoContainerBase(BaseContainersCustom);
 
-                    if (baseContainers != null && baseContainers.Count>0)
+                    if (baseContainers != null && baseContainers.Count > 0)
                     {
                         //Echo("Ship Connected \nBase Cargo found");
                         TextWriting(LCDLog, LCDLogBool, "", false);
@@ -1017,10 +1061,10 @@ namespace IngameScript
                             IMyInventory destinationInventory = destinationContainers[i].GetInventory();
                             //Echo($"cargoInv: {destinationInventory}");
 
-                            foreach (var container in itemDict.Keys) 
+                            foreach (var container in itemDict.Keys)
                             {
                                 if (container != destinationContainers[i]) continue;
-                                
+
                                 time += Runtime.TimeSinceLastRun.TotalSeconds;
                                 containerItems = itemDict[container];
                                 allMoved = false;
@@ -1038,7 +1082,7 @@ namespace IngameScript
                                         yield return 1 * multTicks * tickToSeconds;
                                         //Me.CustomData += "1\n";
                                         ShipItemsList = ItemToList(destinationContainers[i]); //create a list of items in the destination container
-                                        
+
                                         //Echo($"sourceInv: {sourceContainer.CustomName}");
                                         IMyInventory sourceInventory = sourceContainer.GetInventory();
                                         time += Runtime.TimeSinceLastRun.TotalSeconds;
@@ -1066,24 +1110,24 @@ namespace IngameScript
                                                 sourceInventory.TransferItemTo(destinationInventory, (MyInventoryItem)itemSource, quantity);
                                                 //Echo($"ItemLoaded: {itemId} = {quantity}");
                                             }
-                                            if (ShipItemsList.Count>0)
+                                            if (ShipItemsList.Count > 0)
                                             {
                                                 for (int j = ShipItemsList.Count - 1; j >= 0; j--)
                                                 {
                                                     //Me.CustomData += $"j = {j}\n";
                                                     if (itemId == (MyDefinitionId)ShipItemsList[j].Type)
                                                     {
-                                                        
+
                                                         totItems = container.GetInventory().ItemCount;
                                                         time += Runtime.TimeSinceLastRun.TotalSeconds;
-                                                        
+
                                                         MyFixedPoint itemCount = ShipItemsList[j].Amount;
                                                         MyFixedPoint zero = 0;
                                                         MyFixedPoint amountToPass = MyFixedPoint.Max(quantity - itemCount, zero);
 
                                                         sourceInventory.TransferItemTo(destinationInventory, (MyInventoryItem)itemSource, amountToPass);
 
-                                                        
+
                                                         ShipItemsList.RemoveAt(j);
                                                     }
                                                     int finalListCount = ShipItemsList.Count;
@@ -1122,7 +1166,7 @@ namespace IngameScript
                                         else allMoved = false;
                                         if (allItems && allMoved) { break; }
                                     }
-                                    
+
                                 }
                             }
                         }
@@ -1141,7 +1185,7 @@ namespace IngameScript
                                     //Echo("missing items dict creation");
                                     Dictionary<MyDefinitionId, MyFixedPoint> nestedDictionary = new Dictionary<MyDefinitionId, MyFixedPoint>();
                                     //Echo("custom data dict per container");
-                                    Dictionary<MyDefinitionId, int>  containerItemsNew = itemDict[dictContainer]; //item's name in custom data container
+                                    Dictionary<MyDefinitionId, int> containerItemsNew = itemDict[dictContainer]; //item's name in custom data container
                                     //Echo("list creation");
                                     List<MyInventoryItem> missingItemsList = ItemToList(container);
                                     //Echo($"missingItemsList: {missingItemsList.Count}");
@@ -1226,7 +1270,7 @@ namespace IngameScript
                         TextWriting(LCDLog, LCDLogBool, $"Reload Completed!\n{missingCargo}", false);
                         missingItems.Clear();
                         missingCargo.Clear();
-                        
+
                         slowReloadBool = false;
                         yield break;
                     }
@@ -1235,7 +1279,7 @@ namespace IngameScript
                     {
                         Echo("No Base Containers:\nChange the Base's Cargos Group Name as BaseCargo");
                         TextWriting(LCDLog, LCDLogBool, "No Base Containers:\nChange the Base's Cargos Group Name\n as BaseCargo", false);
-                        slowReloadBool=false;
+                        slowReloadBool = false;
                         yield break;
                     }
                 }
@@ -1243,7 +1287,7 @@ namespace IngameScript
                 {
                     Echo("Ship is not Connected to Station");
                     TextWriting(LCDLog, LCDLogBool, $"Ship is not Connected to Station", false);
-                    slowReloadBool=false;
+                    slowReloadBool = false;
                     yield break;
                 }
             }
@@ -1577,7 +1621,7 @@ namespace IngameScript
             if (lcdBool)
             {
                 string header = $"{lcd_divider}\n{lcd_title}\n           {version}\n" +
-                    $"{lcd_divider}\nCOMMANDS:\nstart, stop, fast_unload, \nfast_reload, slow_upload, \nslow_reload, refresh, \nread&write, toggle\n{lcd_divider}\n";
+                    $"{lcd_divider}\n";
                 LCD.WriteText(header + input, append);
             }
         }
