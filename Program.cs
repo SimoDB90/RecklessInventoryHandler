@@ -825,7 +825,7 @@ namespace IngameScript
         public void ReadAndWrite()
         {
             List<IMyCargoContainer> taggedCargos = new List<IMyCargoContainer>();
-            GridTerminalSystem.GetBlocksOfType(taggedCargos, x => x.CustomName.Contains(TagCustom));
+            GridTerminalSystem.GetBlocksOfType(taggedCargos, x => x.CustomName.Contains(TagCustom +".READ"));
             _ini.Clear();
             if (taggedCargos != null && taggedCargos.Count > 0)
             {
