@@ -86,7 +86,7 @@ namespace IngameScript
         IMyTextPanel LCDInv;
         bool LCDLogBool;
         bool LCDInvBool;
-        const string defaultHUDLCD = "hudlcd:-.55:-0.59:0.55";
+        const string defaultHUDLCD = "hudlcd:-.7:-0.59:0.55";
         const string defaultHUDLCDInv = "hudlcd:-.5:.99:0.62";
         Color lcd_font_colour = new Color(30, 144, 255, 255);
 
