@@ -187,8 +187,8 @@ namespace IngameScript
                 profiler.Run();
                 averageRT = Math.Round(profiler.RunningAverageMs, 2);
                 maxRT = Math.Round(profiler.MaxRuntimeMs, 2);
-                Echo($"AverageRT(ms): {averageRT}\nMaxRT(ms): {maxRT}\n" +
-                    $"Ticks Mult: {multTicks}");
+                //Echo($"AverageRT(ms): {averageRT}\nMaxRT(ms): {maxRT}\n" +
+                //    $"Ticks Mult: {multTicks}");
                 if (averageRT <= 0.5 * maxRTCustom)
                 {
                     multTicks = multTickList[0];
