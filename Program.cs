@@ -239,6 +239,14 @@ namespace IngameScript
                         TextWriting(LCDLog, LCDLogBool, $"Reading Cargos' CD\n", false);
                         break;
 
+                    case "clear":
+                        timerSM.Stop();
+                        Runtime.UpdateFrequency |= UpdateFrequency.None;
+                        slowReloadBool = false;
+                        slowUnloadBool = false;
+                        ClearTag();
+                        break;
+
                     case "read&write":
                         timerSM.Stop();
                         //TextWriting(LCDLog, LCDLogBool, "Reading tagged Cargos' CD\n", false);
@@ -483,6 +491,29 @@ namespace IngameScript
             return false;
         }
 
+        public void ClearTag()
+        {
+            List<IMyCargoContainer> myCargos = new List<IMyCargoContainer>();
+            string[] tags = new string[] { ".READ", ".COPY", ".PASTE" };
+            GridTerminalSystem.GetBlocksOfType(myCargos, x =>
+            {
+                foreach (var t in tags)
+                {
+                    if (x.CustomName.Contains(TagCustom))
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            });
+            
+            foreach(var c in myCargos)
+            {
+                foreach(var t in tags)
+                    c.CustomName = c.CustomName.Replace(TagCustom + t, "");
+            }
+            TextWriting(LCDLog, LCDLogBool, $"Tags cleared from {myCargos.Count} cargos", false);
+        }
         public void FastUnload(List<IMyCargoContainer> sourceContainers, List<IMyCargoContainer> baseContainers)
         {
             foreach (IMyCargoContainer destinationContainer in baseContainers)

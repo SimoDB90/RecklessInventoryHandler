@@ -3,8 +3,8 @@
 SCRIPT: RECKLESS INVENTORY HANDLER;
 TAG: RIH;
 OWNER: Reckless;
-Version: 1.2.6;
-Last Update: 31/10/2023;
+Version: 1.2.7;
+Last Update: 08/11/2023;
 DOWNLOAD AND READ THE GUIDE = https://steamcommunity.com/sharedfiles/filedetails/?id=3045706587
 
 CUSTOMIZE:
@@ -13,7 +13,7 @@ and if you are not in ExpasneServer, put it on false to avoid pushing fusion can
 many canisters push into reactors; Tag an LCD as [RIH].Log for logs and another [RIH].Inventory for ores quantity in cargos.
 USE IT: 
 The script auto starts pulling fuel canisters and special containers.
-Script's command: start, refresh, cancel, reload, unload, toggle and read&write;
+Script's command: start, refresh, cancel, reload, unload, toggle, read&write, copy&paste and clear;
 1)"start": will start auto pulling fusion canisters into reactors and check for any "Special" cargo to unload into non Special cargos (if is set in CD);
 2)"fast_reload": transfers all the wanted items, from your station's containers (named "Base Cargo") to your ship's containers (named "Ship Cargos");
 - Write in the ship's containers custom data, in the first line [Cargo], then, the wanted items and the amount, in this way: "Component/SteelPlate=25", for every line;
@@ -25,3 +25,4 @@ Script's command: start, refresh, cancel, reload, unload, toggle and read&write;
 8) "toggle": turn on all blocks except for Epstein Drivers and tools;
 9)"read&write": read the items cargos tagge with "[RIH]" and write the items into the CD;
 10)"copy&paste": copy the CD of a cargo tagged with "[RIH].COPY" to any amount of cargos' CD, tagged with "[RIH].PASTE";
+11) "clear": clear any tag + .PASTE , .COPY, .READ from any cargo;
