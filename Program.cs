@@ -1,35 +1,15 @@
-using EmptyKeys.UserInterface.Generated.DataTemplatesContractsDataGrid_Bindings;
-using Sandbox.Game.Entities;
-using Sandbox.Game.EntityComponents;
-using Sandbox.Game.Lights;
-using Sandbox.Game.WorldEnvironment.Modules;
-using Sandbox.ModAPI.Ingame;
-using Sandbox.ModAPI.Interfaces;
-using SpaceEngineers.Game.Entities.Blocks;
-using SpaceEngineers.Game.ModAPI.Ingame;
+﻿using Sandbox.ModAPI.Ingame;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.ComponentModel;
-using System.Diagnostics;
 using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Security.Cryptography;
 using System.Text;
-using System.Windows.Input;
-using System.Xml.Linq;
 using VRage;
-using VRage.Collections;
 using VRage.Game;
-using VRage.Game.Components;
 using VRage.Game.GUI.TextPanel;
 using VRage.Game.ModAPI.Ingame;
 using VRage.Game.ModAPI.Ingame.Utilities;
-using VRage.Game.ObjectBuilders.Definitions;
-using VRage.Profiler;
 using VRageMath;
-using VRageRender.Messages;
 
 
 namespace IngameScript
@@ -506,10 +486,10 @@ namespace IngameScript
                 }
                 return false;
             });
-            
-            foreach(var c in myCargos)
+
+            foreach (var c in myCargos)
             {
-                foreach(var t in tags)
+                foreach (var t in tags)
                     c.CustomName = c.CustomName.Replace(TagCustom + t, "");
             }
             TextWriting(LCDLog, LCDLogBool, $"Tags cleared from {myCargos.Count} cargos", false);
@@ -820,14 +800,14 @@ namespace IngameScript
         public void CopyAndPaste()
         {
             List<IMyCargoContainer> cargoCopyList = new List<IMyCargoContainer>();
-            List<IMyCargoContainer> cargoPasteList = new List<IMyCargoContainer> ();
+            List<IMyCargoContainer> cargoPasteList = new List<IMyCargoContainer>();
             IMyCargoContainer cargoCopy;
             GridTerminalSystem.GetBlocksOfType(cargoCopyList, x => x.CustomName.Contains(TagCustom + ".COPY"));
             GridTerminalSystem.GetBlocksOfType(cargoPasteList, x => x.CustomName.Contains(TagCustom + ".PASTE"));
-            if(cargoCopyList!=null && cargoCopyList.Count == 1)
+            if (cargoCopyList != null && cargoCopyList.Count == 1)
             {
                 cargoCopy = cargoCopyList[0];
-                if(cargoPasteList!=null && cargoPasteList.Count>0)
+                if (cargoPasteList != null && cargoPasteList.Count > 0)
                 {
                     foreach (var c in cargoPasteList)
                     {
@@ -842,12 +822,12 @@ namespace IngameScript
                     return;
                 }
             }
-            else if(cargoCopyList==null)
+            else if (cargoCopyList == null)
             {
                 TextWriting(LCDLog, LCDLogBool, "Cargo to be copied not found!", false);
                 return;
             }
-            else if (cargoCopyList.Count>1)
+            else if (cargoCopyList.Count > 1)
             {
                 TextWriting(LCDLog, LCDLogBool, $"Only one cargo can be copied!\n{cargoCopyList.Count} cargos detected!", false);
                 return;
@@ -856,7 +836,7 @@ namespace IngameScript
         public void ReadAndWrite()
         {
             List<IMyCargoContainer> taggedCargos = new List<IMyCargoContainer>();
-            GridTerminalSystem.GetBlocksOfType(taggedCargos, x => x.CustomName.Contains(TagCustom +".READ"));
+            GridTerminalSystem.GetBlocksOfType(taggedCargos, x => x.CustomName.Contains(TagCustom + ".READ"));
             _ini.Clear();
             if (taggedCargos != null && taggedCargos.Count > 0)
             {
