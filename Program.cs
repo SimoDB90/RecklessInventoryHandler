@@ -45,8 +45,14 @@ namespace IngameScript
         int timeMultCustom = 1;
         const bool specialCargoUsageDefault = true;
         bool specialCargoUsageCustom;
-        const string specialContainersTagDefault = "Special";
+        const string specialContainersTagDefault = "Special"; //tag used for constantly unloading from special to non special
         string specialContainersTagCustom;
+        const bool _emptyCockpitDefault = true;
+        bool _emptyCockpitCustom;
+        const bool _emptyConnectorsDefault = true;
+        bool _emptyConnectorsCustom;
+        const bool _emptyDrillsDefault = true;
+        bool _emptyDrillsCustom;
         const double maxRTDefault = 0.500;
         double maxRTCustom;
 
@@ -58,6 +64,7 @@ namespace IngameScript
         readonly List<IMyCargoContainer> specialCargo = new List<IMyCargoContainer>();
         readonly List<IMyShipConnector> specialConnector = new List<IMyShipConnector>();
         readonly List<IMyCockpit> specialCockpit = new List<IMyCockpit>();
+
         List<MyInventoryItem> ShipItemsList = new List<MyInventoryItem>();
         readonly StringBuilder missingItems = new StringBuilder();
         readonly StringBuilder missingCargo = new StringBuilder();
@@ -98,6 +105,12 @@ namespace IngameScript
         bool slowReloadBool = false;
         bool slowUnloadBool = false;
         bool profilerBool = true;
+
+        const string _multiplierValueSection = "---MultiplierValue-RIH---";
+        const string _multiplierStringName = "Multiplier";
+        const string _cargoCDSection = "--------Cargo-RIH--------";
+
+        
         public Program()
         {
             timerSM = new SimpleTimerSM(this, Sequence());
@@ -288,7 +301,6 @@ namespace IngameScript
                                     TextWriting(LCDLog, LCDLogBool, $"Unload Finished", false);
                                 }
                                 catch { Echo("Error Occurred"); TextWriting(LCDLog, LCDLogBool, "Error Occurred", false); }
-
                             }
                             else
                             {
@@ -433,9 +445,15 @@ namespace IngameScript
                 timerSM.Stop();
                 slowReloadSM.Stop();
                 slowUnloadSM.Stop();
-                _ini.AddSection("Cargo-RIH");
-                _ini.Set("MultiplierValue-RIH", "Multiplier", defaultMultiplier);
-                _ini.SetComment("MultiplierValue-RIH", "Multiplier", "Change this value to multiply all comps");
+                if(!container.CustomData.Contains(_cargoCDSection))
+                {
+                    _ini.AddSection(_cargoCDSection);
+                }
+                if(!container.CustomData.Contains(_multiplierValueSection))
+                {
+                    _ini.Set(_multiplierValueSection, _multiplierStringName, defaultMultiplier);
+                    _ini.SetComment(_multiplierValueSection, _multiplierStringName, "Change this value to multiply all comps");
+                }
                 container.CustomData += _ini.ToString();
                 setupCompleted = false;
                 //container.CustomData += _ini.ToString();
@@ -445,11 +463,11 @@ namespace IngameScript
             }
             if (cargoWasparsed)
             {
-                if (!_ini.ContainsSection("Cargo-RIH")) _ini.AddSection("Cargo-RIH");
+                if (!_ini.ContainsSection(_cargoCDSection)) _ini.AddSection(_cargoCDSection);
                 setupCompleted = true;
-                customMultiplier = _ini.Get("MultiplierValue-RIH", "Multiplier").ToInt32(defaultMultiplier);
-                _ini.Set("MultiplierValue-RIH", "Multiplier", customMultiplier);
-                _ini.SetComment("MultiplierValue-RIH", "Multiplier", "Change this value to multiply all comps");
+                customMultiplier = _ini.Get(_multiplierValueSection, _multiplierStringName).ToInt32(defaultMultiplier);
+                _ini.Set(_multiplierValueSection, _multiplierStringName, customMultiplier);
+                _ini.SetComment(_multiplierValueSection, _multiplierStringName, "Change this value to multiply all comps");
                 container.CustomData = _ini.ToString();
             }
 
@@ -757,7 +775,7 @@ namespace IngameScript
                 else
                 {
                     int customMultiplier;
-                    customMultiplier = _ini.Get("MultiplierValue-RIH", "Multiplier").ToInt32();
+                    customMultiplier = _ini.Get(_multiplierValueSection, _multiplierStringName).ToInt32();
                     //Echo($"{customMultiplier}");
                     List<MyIniKey> keyList = new List<MyIniKey>();
                     _ini.GetKeys(keyList);
@@ -855,10 +873,10 @@ namespace IngameScript
                             MyFixedPoint itemAmount = i.Amount;
                             //Echo($"1: {itemName}\n2:{itemAmount}");
                             TextWriting(LCDLog, LCDLogBool, itemName, false);
-                            _ini.Set("Cargo-RIH", itemName, itemAmount.ToString());
-                            if (!_ini.ContainsSection("MultiplierValue-RIH"))
+                            _ini.Set(_cargoCDSection, itemName, itemAmount.ToString());
+                            if (!_ini.ContainsSection(_multiplierValueSection))
                             {
-                                _ini.Set("MultiplierValue-RIH", "Multiplier", 1);
+                                _ini.Set(_multiplierValueSection, _multiplierStringName, 1);
                             }
                             c.CustomData = _ini.ToString();
                         }
