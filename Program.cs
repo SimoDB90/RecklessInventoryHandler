@@ -17,7 +17,7 @@ namespace IngameScript
     partial class Program : MyGridProgram
     {
 
-        const string version = "V: 1.2.6";
+        const string version = "V: 1.2.8";
         bool isStation;
         const int timeSpan = 1;
         readonly int yieldTime;
