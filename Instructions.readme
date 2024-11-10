@@ -23,6 +23,6 @@ Script's command: start, refresh, cancel, reload, unload, toggle, read&write, co
 6)"stop": kill the script;
 7)"refresh": reads the custom data of cargos (like you would recompile the script);
 8) "toggle": turn on all blocks except for Epstein Drivers and tools;
-9)"read&write": read the items cargos tagged with "[RIH]" and write the items into the CD;
+9)"read&write": read the items cargos tagged with "[RIH].READ" and write the items into the CD;
 10)"copy&paste": copy the CD of a cargo tagged with "[RIH].COPY" to any amount of cargos' CD, tagged with "[RIH].PASTE";
-11) "clear": clear any tag + .PASTE , .COPY, .READ from any cargo;
+11) "clear": clear any tag + .[RIH].PASTE , .[RIH].COPY, .[RIH].READ from any cargo;

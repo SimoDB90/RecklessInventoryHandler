@@ -508,7 +508,7 @@ namespace IngameScript
             foreach (var c in myCargos)
             {
                 foreach (var t in tags)
-                    c.CustomName = c.CustomName.Replace(TagCustom + t, "");
+                    c.CustomName = c.CustomName.Replace("." + TagCustom + t, "");
             }
             TextWriting(LCDLog, LCDLogBool, $"Tags cleared from {myCargos.Count} cargos", false);
         }
